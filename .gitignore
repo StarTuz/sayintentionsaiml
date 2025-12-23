@@ -1,0 +1,51 @@
+# SayIntentionsAIml - Git Ignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+config.ini           # Contains API key - never commit!
+*.log
+
+# X-Plane SDK (downloaded, not committed)
+adapters/xplane/SDK/
+adapters/xplane/sdk/
+
+# Build artifacts
+adapters/xplane/build/
+*.o
+*.a
+
+# Keep the built plugin (for now - consider binary releases later)
+# adapters/xplane/SayIntentionsAIml/
+
+# Temporary files
+/tmp/
+*.tmp
+*.temp
+
+# Test artifacts
+*.mp3
