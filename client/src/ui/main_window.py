@@ -8,6 +8,7 @@ Uses background threads for all SAPI network calls to prevent UI freezing.
 import sys
 import os
 import logging
+import time
 from datetime import datetime
 from typing import Optional, List
 
@@ -458,6 +459,20 @@ class MainWindow(QMainWindow):
         """Handle new comms data (runs on UI thread)."""
         self.comms_widget.update_from_entries(entries)
         
+        # Write to overlay file
+        try:
+            overlay_msgs = []
+            for entry in entries:
+                overlay_msgs.append({
+                    "station": entry.station_name,
+                    "message": entry.outgoing_message,
+                    "timestamp": time.time(),
+                    "is_atc": True  # Only showing ATC msgs for now or we could parse pilot ones
+                })
+            self.sim_data.write_comms_for_overlay(overlay_msgs, self.sapi.is_connected)
+        except Exception as e:
+            logger.debug(f"Failed to update overlay: {e}")
+            
         # Auto-play new audio (runs in background to avoid blocking)
         for entry in entries:
             if entry.atc_url:

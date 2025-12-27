@@ -24,6 +24,12 @@ except ImportError:
     # For development/testing outside X-Plane
     xp = None
 
+# Import the overlay module
+try:
+    import overlay
+except ImportError:
+    overlay = None
+
 
 class PythonInterface:
     """X-Plane Python Plugin Interface."""
@@ -35,6 +41,10 @@ class PythonInterface:
         
         self.running = True
         self.last_command_time = 0
+        
+        # Initialize In-Sim Overlay
+        if overlay:
+            overlay.init_overlay()
         
         # Data directory
         self.data_dir = os.path.expanduser("~/.local/share/SayIntentionsAI")
@@ -59,13 +69,19 @@ class PythonInterface:
         self.running = False
         if hasattr(self, 'flight_loop_id'):
             xp.destroyFlightLoop(self.flight_loop_id)
+        
+        # Cleanup Overlay
+        if overlay:
+            overlay.cleanup_overlay()
+            
         xp.log("[SayIntentionsML] Plugin stopped")
     
     def XPluginEnable(self):
         return 1
     
     def XPluginDisable(self):
-        pass
+        if overlay:
+            overlay.hide()
     
     def XPluginReceiveMessage(self, inFromWho, inMessage, inParam):
         pass
