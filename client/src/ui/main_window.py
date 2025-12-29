@@ -830,10 +830,15 @@ class MainWindow(QMainWindow):
             """Handle result on UI thread."""
             if response.success:
                 self.status_message.emit("Transmission sent")
+                if self.comlink:
+                    self.comlink.send_toast("Transmission sent", "success")
                 # Refresh to get response after delay
                 QTimer.singleShot(2000, self._refresh_history)
             else:
-                self.status_message.emit(f"Transmission failed: {response.error}")
+                msg = f"Transmission failed: {response.error}"
+                self.status_message.emit(msg)
+                if self.comlink:
+                    self.comlink.send_toast(msg, "error")
         
         def on_error(error):
             self.status_message.emit(f"Error: {error}")
