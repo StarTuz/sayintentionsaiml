@@ -16,7 +16,7 @@ from typing import Optional, List, Dict, Any
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QMenuBar, QMenu, QStatusBar, QLabel, QApplication, QMessageBox,
-    QSystemTrayIcon
+    QSystemTrayIcon, QScrollArea
 )
 from PySide6.QtCore import Qt, Signal, Slot, QTimer, QThread
 from PySide6.QtGui import QAction, QIcon, QCloseEvent
@@ -29,6 +29,7 @@ from .comms_widget import CommsHistoryWidget
 from .frequency_panel import FrequencyPanel
 from .transmission_panel import TransmissionPanel
 from .status_panel import StatusPanel
+from .settings_panel import SettingsPanel
 from .workers import SimpleWorker
 from .system_tray import SystemTray
 
@@ -92,8 +93,8 @@ class MainWindow(QMainWindow):
     def _setup_window(self):
         """Configure the main window."""
         self.setWindowTitle("SayIntentionsML - Native Mac/Linux Client")
-        self.resize(1200, 800)
-        self.setMinimumSize(900, 600)
+        self.resize(1400, 850)
+        self.setMinimumSize(1100, 700)
         
         # Apply stylesheet
         self.setStyleSheet(get_stylesheet())
@@ -216,9 +217,14 @@ class MainWindow(QMainWindow):
         
         content_layout.addWidget(left_panel, stretch=2)
         
-        # Right panel: Frequencies and info
+        # Right panel: Frequencies and settings (scrollable)
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        right_scroll.setFixedWidth(400)
+        right_scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        
         right_panel = QWidget()
-        right_panel.setFixedWidth(320)
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(12)
@@ -226,10 +232,14 @@ class MainWindow(QMainWindow):
         self.frequency_panel = FrequencyPanel()
         right_layout.addWidget(self.frequency_panel)
         
-        # Placeholder for additional info
+        # Settings panel
+        self.settings_panel = SettingsPanel()
+        right_layout.addWidget(self.settings_panel)
+        
         right_layout.addStretch()
         
-        content_layout.addWidget(right_panel)
+        right_scroll.setWidget(right_panel)
+        content_layout.addWidget(right_scroll)
         
         main_layout.addWidget(content_widget, stretch=1)
         
@@ -266,6 +276,11 @@ class MainWindow(QMainWindow):
             self.tray.show_window.connect(self._show_from_tray)
             self.tray.quit_app.connect(self._quit_app)
             self.tray.toggle_polling.connect(self._toggle_polling)
+        
+        # Settings panel signals
+        self.settings_panel.atc_mode_changed.connect(self._on_atc_mode_changed)
+        self.settings_panel.cabin_crew_toggled.connect(self._on_cabin_crew_toggled)
+        self.settings_panel.tour_guide_toggled.connect(self._on_tour_guide_toggled)
     
     def _setup_tray(self):
         """Initialize system tray."""
@@ -926,6 +941,52 @@ class MainWindow(QMainWindow):
             self.tray.hide()
         
         event.accept()
+    
+    # =========================================================================
+    # Settings Handlers
+    # =========================================================================
+    
+    @Slot(str)
+    def _on_atc_mode_changed(self, mode: str):
+        """Handle ATC mode change from settings panel."""
+        logger.info(f"ATC mode changed to: {mode}")
+        self.status_bar.showMessage(f"ATC Mode: {mode.capitalize()}")
+        
+        # TODO: Send mode preference to SAPI if supported
+        # For now, this is a client-side preference
+        
+        if self.comlink:
+            self.comlink.send_toast(f"ATC Mode: {mode.capitalize()}", "info")
+    
+    @Slot(bool)
+    def _on_cabin_crew_toggled(self, enabled: bool):
+        """Handle cabin crew toggle from settings panel."""
+        logger.info(f"Cabin crew {'enabled' if enabled else 'disabled'}")
+        
+        if enabled:
+            self.status_bar.showMessage("✈️ Cabin crew enabled - announcements active")
+            # TODO: Activate cabin crew entity via SAPI intercom
+        else:
+            self.status_bar.showMessage("Cabin crew disabled")
+        
+        if self.comlink:
+            state = "enabled" if enabled else "disabled"
+            self.comlink.send_toast(f"Cabin crew {state}", "info")
+    
+    @Slot(bool)
+    def _on_tour_guide_toggled(self, enabled: bool):
+        """Handle tour guide toggle from settings panel."""
+        logger.info(f"Tour guide {'enabled' if enabled else 'disabled'}")
+        
+        if enabled:
+            self.status_bar.showMessage("🗺️ Tour guide enabled - landmark info active")
+            # TODO: Activate tour guide entity via SAPI intercom
+        else:
+            self.status_bar.showMessage("Tour guide disabled")
+        
+        if self.comlink:
+            state = "enabled" if enabled else "disabled"
+            self.comlink.send_toast(f"Tour guide {state}", "info")
 
 
 def run_gui(enable_web: bool = True, web_port: int = 8080):

@@ -31,12 +31,20 @@ class Channel(Enum):
     INTERCOM = "INTERCOM"
 
 
+class ATCMode(Enum):
+    """ATC experience modes - affects verbosity and UI aids"""
+    STUDENT = "student"    # Slower, explicit instructions, full guidance
+    STANDARD = "standard"  # True-to-life ATC experience
+    PRO = "pro"            # Advanced - no UI aids, realistic
+
+
 class Entity(Enum):
     """Entity types that can speak"""
     ATC = "atc"
     COPILOT = "copilot"
-    CREW = "crew"
+    CREW = "crew"              # Cabin crew announcements
     DISPATCHER = "dispatcher"
+    TOUR_GUIDE = "tourguide"   # VFR landmarks and points of interest
 
 
 @dataclass
