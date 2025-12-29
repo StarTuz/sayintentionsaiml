@@ -92,7 +92,7 @@ class AirportManager:
         nearest = None
         min_dist = float('inf')
 
-        for apt in self._airports:
+        for apt in self._airports.values():
             dist = self._calculate_distance(lat, lon, apt.lat, apt.lon)
             if dist < min_dist and dist <= max_dist_nm:
                 min_dist = dist
