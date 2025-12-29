@@ -1,27 +1,28 @@
-# Stratus.AI ML - Project Status
+# Project Status: Stratus (Offline ATC)
 
-**Last Updated**: December 23, 2024
+## ✅ Current Status: Offline ATC Operational
 
----
+**December 29, 2024** - The Local AI pivot is **complete**. Stratus now functions as a fully offline ATC simulation.
 
-## 🎉 Current State: BREAKTHROUGH CONFIRMED
+### Architecture: "Brain vs Motor"
 
-### Major Milestone Achieved!
+- **Stratus (Client)**: **The Brain**. All ATC logic, FAA phraseology, telemetry tracking, and AI prompt construction.
+- **speechserverdaemon (Daemon)**: **The Motor**. Immutable speech engine (D-Bus only, no code changes).
 
-On December 23, 2024, we confirmed that a **fully native Linux/Mac client is feasible**:
+## Completed Features (Dec 29, 2024)
 
-1. ✅ API key obtained and validated
-2. ✅ `getCommsHistory` API returns real data with audio URLs
-3. ✅ Audio files downloadable and playable (65KB MP3, 44.1kHz)
-4. ✅ No Windows client required - direct REST API access works!
-
-**See [HANDOFF.md](HANDOFF.md) for complete details.**
+- ✅ **Voice Interaction**: Listen → Think → Speak flow working
+- ✅ **Location Awareness**: ATC responses use X-Plane telemetry (position, altitude, frequency)
+- ✅ **FAA Phraseology**: Responses follow Order 7110.65 format
+- ✅ **D-Bus Integration**: 10-second timeouts with error handling
+- ✅ **Configuration**: llama2 model, Wyoming STT backend
 
 ---
 
 ### ✅ Completed Components
 
 #### 1. X-Plane Native Plugin (Linux)
+
 - **Status**: Working ✅
 - **Location**: `adapters/xplane/StratusAIml/lin_x64/StratusAIml.xpl`
 - **Features**:
@@ -31,6 +32,7 @@ On December 23, 2024, we confirmed that a **fully native Linux/Mac client is fea
   - Verified working in X-Plane 12.3.3
 
 #### 2. SAPI API Access
+
 - **Status**: Working ✅
 - **API Key**: Obtained and tested
 - **Endpoints Verified**:
@@ -38,12 +40,14 @@ On December 23, 2024, we confirmed that a **fully native Linux/Mac client is fea
   - Audio files downloadable and valid ✅
 
 #### 3. Build System
+
 - **Status**: Working ✅
 - CMake configuration for Linux (tested), macOS and Windows (config ready)
 - SDK download script (`setup_sdk.sh`)
 - Fat plugin directory structure
 
 #### 4. Documentation
+
 - **Status**: Comprehensive ✅
 - Complete API documentation discovered
 - Architecture defined
@@ -56,17 +60,20 @@ On December 23, 2024, we confirmed that a **fully native Linux/Mac client is fea
 Now that we've confirmed feasibility, the next phase is building the client:
 
 #### Phase 1: MVP (Text-Only) - ~8 hours
+
 1. SAPI Python module (`sayAs`, `getCommsHistory`)
 2. Audio playback (download + play MP3)
 3. Basic CLI interface
 4. Poll loop for comms history
 
 #### Phase 2: GUI Client - ~12 hours
+
 1. PySide6 main window
 2. Comms history display
 3. Frequency panel
 
 #### Phase 3: Voice Input - ~10 hours
+
 1. Whisper STT integration
 2. PTT hotkey binding
 
@@ -127,16 +134,19 @@ Now that we've confirmed feasibility, the next phase is building the client:
 ## Next Steps
 
 ### Immediate (Requires API Key)
+
 1. **Get Stratus API Key** - Needed to develop cloud integration
 2. **Implement SAPI Client** - Audio streaming, command handling
 3. **Complete UI** - Status display, settings management
 
 ### When API Key Available
+
 1. Test end-to-end audio communication
 2. Parse and apply incoming commands
 3. Build Linux/macOS packages
 
 ### Future Enhancements
+
 1. Implement command processing in plugin
 2. Add Better Pushback integration
 3. Add OpenSAM jetway integration

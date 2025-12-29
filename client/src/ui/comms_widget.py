@@ -231,7 +231,7 @@ class CommsHistoryWidget(QWidget):
         layout.addWidget(self.scroll_area)
         
         # Empty state label
-        self.empty_label = QLabel("No communications yet.\nConnect to SAPI and start your flight!")
+        self.empty_label = QLabel("No communications yet.\nConnect to ATC and start your flight!")
         self.empty_label.setAlignment(Qt.AlignCenter)
         self.empty_label.setStyleSheet(f"color: {get_color('text_muted')}; padding: 40px;")
         self.messages_layout.insertWidget(0, self.empty_label)

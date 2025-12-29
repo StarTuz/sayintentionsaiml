@@ -105,12 +105,13 @@ def run_headless(port: int = 8080):
     import signal
     
     from web import ComLinkServer
-    from core.sapi_interface import SapiService
+    from core.providers.factory import get_provider, IATCProvider
     from core.sim_data import SimDataInterface
     from audio import AudioHandler
     
     # Initialize services
-    sapi = SapiService()
+    # Config path handling is internal to factory now
+    sapi: IATCProvider = get_provider()
     audio = AudioHandler()
     sim_data = SimDataInterface()
     
@@ -122,10 +123,11 @@ def run_headless(port: int = 8080):
     
     # Wire up ComLink callbacks
     def on_send_transmission(message: str, channel: str):
-        if sapi.is_connected:
-            from core.sapi_interface import Channel
-            chan = Channel.COM1 if channel == "COM1" else Channel.COM2
-            response = sapi.say_as(message, chan)
+        if sapi.get_status().startswith("CONNECTED"):
+            from core.providers.base import Channel
+            # Map string channel to Enum if needed, or pass string directly if provider handles it
+            # Local provider handles strings "left"/"right"/"com1" etc.
+            response = sapi.say(message, channel=channel)
             if response.success:
                 comlink.send_toast("Transmission sent", "success")
             else:
@@ -151,13 +153,13 @@ def run_headless(port: int = 8080):
     print(f"   Access from any device on your network!")
     print(f"\nPress Ctrl+C to stop\n")
     
-    # Connect to SAPI
-    print("Connecting to SAPI...")
+    # Connect to SAPI / Local Provider
+    print("Connecting to ATC Provider...")
     if sapi.connect():
-        print("✓ Connected to Stratus API")
-        comlink.update_connection_status(True, "Connected")
+        print(f"✓ Connected: {sapi.get_status()}")
+        comlink.update_connection_status(True, sapi.get_status())
     else:
-        print("✗ Failed to connect to SAPI (check config.ini)")
+        print("✗ Failed to connect to Provider")
         comlink.update_connection_status(False, "Not connected")
     
     # Main loop
@@ -197,10 +199,14 @@ def run_headless(port: int = 8080):
                 }
             })
             
-            # Poll for new comms
-            if sapi.is_connected and now - last_poll >= poll_interval:
+            # Poll for new comms (Cloud only)
+            # Local provider handles audio output directly via SpeechD-NG
+            if "CLOUD" in sapi.get_status() and now - last_poll >= poll_interval:
                 last_poll = now
-                response = sapi.get_comms_history()
+                # Note: We need to expose get_comms_history in base if we want this common
+                # For now, we assume Cloud provider might have it or we cast it
+                if hasattr(sapi, 'get_comms_history'):
+                    response = sapi.get_comms_history()
                 if response.success and response.data:
                     # Convert to dicts for JSON
                     comms = []

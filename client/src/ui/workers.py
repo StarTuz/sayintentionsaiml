@@ -1,7 +1,7 @@
 """
 Worker threads for background operations.
 
-Provides QThread-based workers for SAPI calls to prevent UI freezing.
+Provides QThread-based workers for ATC calls to prevent UI freezing.
 """
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class SapiWorker(QObject):
     """
-    Worker for executing SAPI calls in a background thread.
+    Worker for executing ATC calls in a background thread.
     
     Usage:
         worker = SapiWorker(sapi.get_comms_history)
@@ -64,7 +64,7 @@ class SapiWorker(QObject):
 
 
 class ConnectionWorker(QObject):
-    """Worker specifically for SAPI connection."""
+    """Worker specifically for ATC connection."""
     
     connected = Signal(bool, str)  # success, message
     finished = Signal()
@@ -107,7 +107,7 @@ class ConnectionWorker(QObject):
 
 class PollingWorker(QObject):
     """
-    Worker for polling SAPI in background.
+    Worker for polling ATC in background.
     
     Unlike the simple workers, this one runs continuously.
     """

@@ -2,7 +2,7 @@
 Stratus Main Window
 
 The primary GUI window for the native Linux client.
-Uses background threads for all SAPI network calls to prevent UI freezing.
+Uses background threads for all ATC network calls to prevent UI freezing.
 Includes ComLink web server for tablet/phone access.
 """
 
@@ -33,7 +33,8 @@ from .settings_panel import SettingsPanel
 from .workers import SimpleWorker
 from .system_tray import SystemTray
 
-from core.sapi_interface import SapiService, CommEntry, Channel
+from core.providers.factory import get_provider, IATCProvider
+from core.sapi_interface import CommEntry, Channel
 from core.sim_data import SimDataInterface
 from core.copilot import Copilot, CopilotMode, get_copilot
 from core.speech_interface import SpeechInterface
@@ -63,13 +64,16 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         
         # State
-        self.sapi: Optional[SapiService] = None
+        self.sapi: Optional[IATCProvider] = None
         self.audio: Optional[AudioHandler] = None
         self._polling = False
         self._poll_timer: Optional[QTimer] = None
         self._played_comm_ids: set = set()
         self._active_workers: List[SimpleWorker] = []  # Keep references to prevent GC
         self._minimize_to_tray = True  # Minimize to tray instead of closing
+        
+        # ATC conversation history for context
+        self._atc_history: List[str] = []  # Last N pilot/ATC exchanges
         
         # ComLink web server
         self._enable_web = enable_web and HAS_COMLINK
@@ -141,7 +145,7 @@ class MainWindow(QMainWindow):
         clear_action.triggered.connect(lambda: self.comms_widget.clear_history())
         view_menu.addAction(clear_action)
         
-        reset_action = QAction("&Reset SAPI Session", self)
+        reset_action = QAction("&Reset Session", self)
         reset_action.setToolTip("Force a session state refresh to resolve location issues")
         reset_action.triggered.connect(self._reset_sapi_session)
         view_menu.addAction(reset_action)
@@ -253,7 +257,7 @@ class MainWindow(QMainWindow):
         # Status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Ready. Connect to SAPI to begin.")
+        self.status_bar.showMessage("Ready. Connect to ATC to begin.")
     
     def _connect_signals(self):
         """Connect all signals to slots."""
@@ -394,7 +398,7 @@ class MainWindow(QMainWindow):
         # Start telemetry polling (every 500ms to update frequencies)
         self._telemetry_timer = QTimer(self)
         self._telemetry_timer.timeout.connect(self._update_telemetry)
-        self._telemetry_timer.start(2000)
+        self._telemetry_timer.start(500)  # 500ms for responsiveness
 
         
         # Disable transmission until connected
@@ -429,17 +433,38 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("Listening... Speak now")
         self.transmission_panel.set_transmitting_state(True)
         
-        # Start background worker for STT
-        # We store it in self to prevent garbage collection
-        self._stt_worker = SimpleWorker(self.speech.listen_vad)
-        self._stt_worker.result.connect(self._on_stt_result)
-        self._stt_worker.error.connect(self._on_stt_error)
-        self._stt_worker.start()
+        # PTT Countdown timer
+        self._ptt_countdown = 5
+        self._ptt_timer = QTimer(self)
+        self._ptt_timer.timeout.connect(self._update_ptt_countdown)
+        self._ptt_timer.start(1000)
+        self.transmission_panel.ptt_btn.setText(f"TX ({self._ptt_countdown})")
         
-    @Slot(object)
+        # Start background worker for STT
+        self._stt_worker = self._run_in_background(
+            self.speech.listen_vad, 
+            self._on_stt_result, 
+            self._on_stt_error
+        )
+
+    def _update_ptt_countdown(self):
+        """Update the PTT button text with remaining time."""
+        self._ptt_countdown -= 1
+        if self._ptt_countdown <= 0:
+            self._stop_ptt_timer()
+        else:
+            self.transmission_panel.ptt_btn.setText(f"TX ({self._ptt_countdown})")
+
+    def _stop_ptt_timer(self):
+        """Stop and clean up the PTT timer."""
+        if hasattr(self, '_ptt_timer') and self._ptt_timer:
+            self._ptt_timer.stop()
+            self._ptt_timer = None
+        self.transmission_panel.set_transmitting_state(False)
+        
     def _on_stt_result(self, text):
         """Handle STT transcription result."""
-        self.transmission_panel.set_transmitting_state(False)
+        self._stop_ptt_timer()
         self._stt_worker = None
         
         if text:
@@ -454,7 +479,7 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def _on_stt_error(self, error):
         """Handle STT error."""
-        self.transmission_panel.set_transmitting_state(False)
+        self._stop_ptt_timer()
         self._stt_worker = None
         logger.error(f"STT Error: {error}")
         self.status_bar.showMessage(f"Voice Input Error: {error}")
@@ -550,12 +575,12 @@ class MainWindow(QMainWindow):
     @Slot()
     def _on_connect(self):
         """Handle connect button - runs connection in background thread."""
-        self.status_bar.showMessage("Connecting to SAPI...")
+        self.status_bar.showMessage("Connecting to ATC...")
         self.status_panel.set_connected(False, "Connecting...")
         
         def do_connect():
             """This runs in background thread."""
-            sapi = SapiService()
+            sapi = get_provider()
             if sapi.connect():
                 return sapi
             return None
@@ -570,9 +595,9 @@ class MainWindow(QMainWindow):
                 self._start_polling()
             else:
                 self.connection_changed.emit(False, "Connection failed")
-                self.status_message.emit("Failed to connect to SAPI")
+                self.status_message.emit("Failed to connect to ATC")
                 QMessageBox.warning(self, "Connection Failed", 
-                    "Could not connect to Stratus API.\nCheck your API key in config.ini")
+                    "Could not connect to ATC Provider.\nCheck configuration and ensure backend (Speech Daemon or SAPI) is reachable.")
         
         def on_error(error):
             """Handle connection error."""
@@ -837,28 +862,168 @@ class MainWindow(QMainWindow):
     
     @Slot(str, str)
     def _on_send_transmission(self, message: str, channel: str):
-        """Handle pilot transmission - runs in background thread."""
+        """Handle pilot transmission - routes through AI for ATC response."""
         if not self.sapi or not self.sapi.is_connected:
-            self.status_bar.showMessage("Not connected to SAPI")
+            self.status_bar.showMessage("Not connected to ATC")
             return
         
-        self.status_bar.showMessage(f"Transmitting on {channel}...")
+        self.status_bar.showMessage(f"Processing ATC response...")
         
-        def do_send():
-            """This runs in background thread."""
-            chan = Channel.COM1 if channel == "COM1" else Channel.COM2
-            return self.sapi.say_as(message, chan)
+        # Get current telemetry for context
+        telemetry = self.sim_data.read_telemetry()
+        callsign = telemetry.tail_number if telemetry.connected else "November-One-Two-Three-Alpha-Bravo"
+        frequency = telemetry.com1.active if channel == "COM1" else telemetry.com2.active
+        
+        # Build location context
+        if telemetry.connected:
+            lat = telemetry.latitude
+            lon = telemetry.longitude
+            alt = int(telemetry.altitude_msl)
+            on_ground = telemetry.on_ground
+            heading = int(telemetry.heading_mag)
+            speed = int(telemetry.ias)
+            
+            # Determine likely ATC facility type based on flight phase
+            if on_ground:
+                facility_hint = "Ground Control or Tower"
+            elif alt < 3000:
+                facility_hint = "Tower or Approach Control"
+            elif alt < 18000:
+                facility_hint = "Approach/Departure Control or Center"
+            else:
+                facility_hint = "Air Route Traffic Control Center (Center)"
+            
+            location_context = f"""
+AIRCRAFT SITUATION:
+- Aircraft: {callsign} (Type: {telemetry.icao_type})
+- Position: {lat:.4f}°N, {abs(lon):.4f}°{'W' if lon < 0 else 'E'}
+- Altitude: {alt} feet MSL
+- Heading: {heading}°
+- Speed: {speed} knots
+- On Ground: {'Yes' if on_ground else 'No'}
+- Radio Frequency: {frequency} MHz
+
+You are Air Traffic Control at the facility responsible for this aircraft's location.
+Likely facility type: {facility_hint}
+"""
+        else:
+            location_context = """
+AIRCRAFT SITUATION: Simulator disconnected - no position data available.
+You are a generic Air Traffic Controller.
+"""
+        
+        def do_atc_flow():
+            """This runs in background thread: Think -> Speak."""
+            # Build conversation history context (last 10 exchanges)
+            if self._atc_history:
+                history_context = "\n".join(self._atc_history[-10:])
+            else:
+                history_context = "(This is the first transmission - no prior context)"
+            
+            # Build location-aware ATC prompt with FAA-accurate phraseology
+            atc_prompt = f"""{location_context}
+
+
+FAA ATC TRANSMISSION FORMAT:
+Format: "[Aircraft Callsign], [Facility], [Message]"
+
+EXAMPLES OF CORRECT ATC RESPONSES:
+- Radio check: "Cessna Three Alpha Bravo, Tower, readability five"
+- Taxi clearance: "Cessna Three Alpha Bravo, Ground, runway two seven, taxi via Alpha, hold short of runway two seven"
+- Run-up complete: "Cessna Three Alpha Bravo, hold short runway two seven, number two for departure"
+- Takeoff: "Cessna Three Alpha Bravo, wind two seven zero at one zero, runway two seven, cleared for takeoff"
+- VFR Flight Following: "Cessna Three Alpha Bravo, radar contact, three miles east of the field, VFR flight following to Sacramento, squawk one two zero zero, maintain VFR"
+- VFR traffic advisory: "Cessna Three Alpha Bravo, traffic eleven o'clock, five miles, westbound, altitude indicates four thousand five hundred"
+- Frequency change: "Cessna Three Alpha Bravo, contact NorCal Approach on one two four point five"
+- Landing: "Cessna Three Alpha Bravo, runway two seven, cleared to land, wind two five zero at eight"
+
+CRITICAL RULES:
+1. Start with aircraft callsign, then facility suffix (Ground, Tower, Approach, Center)
+2. NEVER say "This is" - just the facility suffix directly  
+3. Taxi clearances ALWAYS end with "hold short of runway [XX]"
+4. Numbers: "niner" for 9, "two seven zero" for 270, "point" for decimal
+5. Be extremely brief - real ATC is terse
+6. Track the flight: if pilot requests flight following, acknowledge with squawk code and destination
+7. RADIO CHECK: Always respond with READABILITY (1-5 scale). Say "readability five" NOT "radio check"
+
+
+CONVERSATION CONTEXT:
+{history_context}
+
+The pilot now transmitted: "{message}"
+
+Respond as ATC. Give ONLY the radio transmission, no explanations."""
+
+
+
+
+            # Get AI response
+            think_result = self.sapi.think(atc_prompt)
+            if not think_result.success:
+                return think_result
+            
+            atc_response = str(think_result.data).strip()
+            
+            # Clean up response (remove quotes if LLM added them)
+            if atc_response.startswith('"') and atc_response.endswith('"'):
+                atc_response = atc_response[1:-1]
+            
+            # Speak the ATC response
+            chan_str = "left" if channel == "COM1" else "right"
+            speak_result = self.sapi.say(atc_response, channel=chan_str)
+            
+            # Return both for logging
+            return type('ATCResult', (), {
+                'success': speak_result.success, 
+                'data': atc_response,
+                'error': speak_result.error if not speak_result.success else None
+            })()
         
         def on_result(response):
             """Handle result on UI thread."""
             if response.success:
-                self.status_message.emit("Transmission sent")
+                # Save to conversation history for context
+                self._atc_history.append(f"PILOT: {message}")
+                self._atc_history.append(f"ATC: {response.data}")
+                # Limit history to last 20 entries (10 exchanges)
+                if len(self._atc_history) > 20:
+                    self._atc_history = self._atc_history[-20:]
+                
+                # Add to visual comms history (for local mode)
+                from .comms_widget import CommMessage
+                import time
+                
+                # Add pilot message
+                pilot_msg = CommMessage(
+                    id=int(time.time() * 1000),
+                    station_name=callsign,
+                    ident="",
+                    frequency=frequency,
+                    incoming_message=message,
+                    outgoing_message="",
+                    has_audio=False
+                )
+                self.comms_widget.add_message(pilot_msg)
+                
+                # Add ATC response
+                atc_msg = CommMessage(
+                    id=int(time.time() * 1000) + 1,
+                    station_name="ATC",
+                    ident="",
+                    frequency=frequency,
+                    incoming_message="",
+                    outgoing_message=response.data,
+                    has_audio=False
+                )
+                self.comms_widget.add_message(atc_msg)
+                
+                self.status_message.emit(f"ATC: {response.data[:60]}...")
                 if self.comlink:
-                    self.comlink.send_toast("Transmission sent", "success")
-                # Refresh to get response after delay
-                QTimer.singleShot(2000, self._refresh_history)
+                    self.comlink.send_toast("ATC responded", "success")
+
+
             else:
-                msg = f"Transmission failed: {response.error}"
+                msg = f"ATC Error: {response.error}"
                 self.status_message.emit(msg)
                 if self.comlink:
                     self.comlink.send_toast(msg, "error")
@@ -866,7 +1031,9 @@ class MainWindow(QMainWindow):
         def on_error(error):
             self.status_message.emit(f"Error: {error}")
         
-        self._run_in_background(do_send, on_result, on_error)
+        self._run_in_background(do_atc_flow, on_result, on_error)
+
+
     
     @Slot(str, str)
     def _on_tune_frequency(self, channel: str, freq: str):
@@ -943,7 +1110,7 @@ class MainWindow(QMainWindow):
                     }
                 })
             
-            # --- UPLINK TO SAPI CLOUD ---
+            # --- UPLINK TO ATC CLOUD ---
             now = time.time()
             if self.sapi and self.sapi.is_connected and (not hasattr(self, '_last_sapi_uplink') or now - self._last_sapi_uplink >= 5.0):
                 self._last_sapi_uplink = now
@@ -1114,7 +1281,7 @@ class MainWindow(QMainWindow):
         logger.info(f"ATC mode changed to: {mode}")
         self.status_bar.showMessage(f"ATC Mode: {mode.capitalize()}")
         
-        # TODO: Send mode preference to SAPI if supported
+        # TODO: Send mode preference to ATC if supported
         # For now, this is a client-side preference
         
         if self.comlink:
@@ -1170,13 +1337,13 @@ class MainWindow(QMainWindow):
     def _reset_sapi_session(self):
         """Force a session state refresh to resolve location issues."""
         if not self.sapi or not self.sapi.is_connected:
-            self.status_bar.showMessage("Connect to SAPI before resetting session")
+            self.status_bar.showMessage("Connect to ATC before resetting session")
             return
             
         telemetry = self.sim_data.read_telemetry()
         icao = telemetry.icao_type if telemetry and telemetry.icao_type else "F70"
         
-        self.status_bar.showMessage(f"Resetting SAPI session for {icao}...")
+        self.status_bar.showMessage(f"Resetting session for {icao}...")
         
         def do_reset():
             return self.sapi.reset_session(icao)

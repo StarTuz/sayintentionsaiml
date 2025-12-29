@@ -199,7 +199,7 @@ class TransmissionPanel(QWidget):
         self.ptt_btn.setEnabled(enabled)
         
         if not enabled:
-            self.text_input.setPlaceholderText("Connect to SAPI to transmit...")
+            self.text_input.setPlaceholderText("Connect to ATC to transmit...")
         else:
             self.text_input.setPlaceholderText("Type your transmission... (Enter to send)")
     

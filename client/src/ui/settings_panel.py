@@ -139,7 +139,7 @@ class SettingsPanel(QWidget):
         session_group = QGroupBox("Session Management")
         session_layout = QVBoxLayout(session_group)
         
-        self.reset_btn = QPushButton("🔄 Reset SAPI Session")
+        self.reset_btn = QPushButton("🔄 Reset Session")
         self.reset_btn.setToolTip("Force a session state refresh to resolve location issues (e.g. stuck at Truckee)")
         self.reset_btn.clicked.connect(self.session_reset_requested.emit)
         session_layout.addWidget(self.reset_btn)

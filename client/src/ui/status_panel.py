@@ -35,7 +35,7 @@ class StatusPanel(QWidget):
         conn_layout = QVBoxLayout()
         conn_layout.setSpacing(2)
         
-        conn_label = QLabel("SAPI Status")
+        conn_label = QLabel("ATC Status")
         conn_label.setStyleSheet(f"color: {get_color('text_muted')}; font-size: 10px;")
         conn_layout.addWidget(conn_label)
         

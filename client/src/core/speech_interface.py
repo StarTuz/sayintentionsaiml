@@ -36,7 +36,7 @@ class SpeechInterface:
             self._interface = dbus.Interface(obj, INTERFACE_NAME)
             
             # Test connection with Ping
-            response = self._interface.Ping()
+            response = self._interface.Ping(timeout=30)
             if response == "pong":
                 self._available = True
                 logger.info("Connected to SpeechD-NG successfully")
@@ -69,10 +69,17 @@ class SpeechInterface:
             
         try:
             if voice:
-                self._interface.SpeakVoice(text, voice)
+                self._interface.SpeakVoice(text, voice, timeout=10)
             else:
-                self._interface.Speak(text)
+                self._interface.Speak(text, timeout=10)
             return True
+        except dbus.exceptions.DBusException as e:
+            error_str = str(e)
+            if "NoReply" in error_str or "Timeout" in error_str:
+                logger.error("Engine Latency: TTS timed out (>10s).")
+            else:
+                logger.error(f"D-Bus Error: {e}")
+            return False
         except Exception as e:
             logger.error(f"TTS Error: {e}")
             return False
@@ -90,9 +97,18 @@ class SpeechInterface:
             
         try:
             logger.info("Listening for speech (VAD)...")
-            text = self._interface.ListenVad()
+            # ListenVad can take a while. AI/Vosk might take time to initialize.
+            # Use 10s timeout as requested by user.
+            text = self._interface.ListenVad(timeout=10)
             logger.info(f"Transcribed: '{text}'")
             return str(text) if text else None
+        except dbus.exceptions.DBusException as e:
+            error_str = str(e)
+            if "NoReply" in error_str or "Timeout" in error_str:
+                logger.error("Engine Latency: STT timed out (>10s). Check model configuration.")
+            else:
+                logger.error(f"D-Bus Error: {e}")
+            return None
         except Exception as e:
             logger.error(f"STT Error: {e}")
             return None

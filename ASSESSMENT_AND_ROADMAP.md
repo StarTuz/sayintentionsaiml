@@ -9,7 +9,8 @@ The primary development effort will focus on two areas:
     *   **X-Plane**: A native plugin (Linux/macOS) to bridge X-Plane DataRefs to the SimAPI JSON format.
     *   **MSFS (Linux Only)**: A strategy to bridge the Windows-only MSFS (running via Proton) to the native Linux client.
 
----
+> [!CAUTION]
+> **LEGAL DISCLAIMER**: This software and any associated AI features (Mentor, Co-Pilot, ATC) are for **ENTERTAINMENT PURPOSES ONLY**. They are NOT for real flight training, certified instruction, or use in actual aircraft. The advice given by the AI may be inaccurate, dangerous, or contrary to real-world aviation regulations.
 
 ## 1. Technical Architecture & Requirements
 
@@ -160,7 +161,20 @@ opensam/jetway/status                # Jetway docking state
 
 ---
 
-## 6. Next Steps
+## 6. Phase X: Advanced Features (Mentor & Co-Pilot)
+*   **Goal**: Leverage Local AI to do what Cloud cannot: Full integration and control.
+*   **Mentor System**:
+    *   **Radio Handling**: Configurable levels (Full, Partial, None).
+    *   **Flight Advice**: Real-time tips on flying technique (e.g., "Watch your bank angle").
+    *   **Casual Mode**: "Certified Fun Flight Lessons" for non-pilots.
+*   **Full Co-Pilot Control** (Research):
+    *   **Challenge**: Can the AI take full control of the aircraft via DataRefs?
+    *   **Goal**: Complete flight automation (Takeoff, Cruise, Landing) by the AI Co-Pilot.
+    *   **Note**: This requires writing to control surface DataRefs (`sim/cockpit2/controls/yoke_pitch_ratio`, etc.) from the Client.
+
+---
+
+## 7. Next Steps
 1.  **Approve this Roadmap.**
 2.  Provide a valid **API Key** for testing (Required for SAPI authentication).
 3.  Confirm preference for **Python/Qt** stack for the client.
