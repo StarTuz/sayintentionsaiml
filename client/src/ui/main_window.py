@@ -36,6 +36,7 @@ from .system_tray import SystemTray
 from core.sapi_interface import SapiService, CommEntry, Channel
 from core.sim_data import SimDataInterface
 from core.copilot import Copilot, CopilotMode, get_copilot
+from core.speech_interface import SpeechInterface
 from audio import AudioHandler, PlayerState
 
 # Optional: ComLink web server (may not be available if flask not installed)
@@ -387,6 +388,62 @@ class MainWindow(QMainWindow):
         
         # Initialize copilot callbacks
         self._init_copilot()
+        
+        # Initialize speech interface
+        self.speech = SpeechInterface()
+        self._init_speech()
+    
+    def _init_speech(self):
+        """Initialize speech integration."""
+        if self.speech.is_available:
+            logger.info("Speech Interface available")
+            if self.comlink:
+                self.comlink.send_toast("Speech Service Connected", "success")
+        else:
+            logger.warning("Speech Interface not available")
+            
+        # Wire up PTT button from transmission panel
+        self.transmission_panel.voice_input_requested.connect(self._on_start_ptt)
+    
+    @Slot()
+    def _on_start_ptt(self):
+        """Handle PTT start (Listen for Speech)."""
+        if not self.speech.is_available:
+            self.status_bar.showMessage("Error: Speech service not connected")
+            return
+            
+        self.status_bar.showMessage("Listening... Speak now")
+        self.transmission_panel.set_transmitting_state(True)
+        
+        # Start background worker for STT
+        # We store it in self to prevent garbage collection
+        self._stt_worker = SimpleWorker(self.speech.listen_vad)
+        self._stt_worker.result.connect(self._on_stt_result)
+        self._stt_worker.error.connect(self._on_stt_error)
+        self._stt_worker.start()
+        
+    @Slot(object)
+    def _on_stt_result(self, text):
+        """Handle STT transcription result."""
+        self.transmission_panel.set_transmitting_state(False)
+        self._stt_worker = None
+        
+        if text:
+            # Send the transcribed text
+            channel = self.transmission_panel._current_channel
+            logger.info(f"STT Heard: '{text}' sending on {channel}")
+            self.status_bar.showMessage(f"Heard: '{text}'")
+            self._on_send_transmission(text, channel)
+        else:
+            self.status_bar.showMessage("Listening timed out or no speech detected")
+            
+    @Slot(str)
+    def _on_stt_error(self, error):
+        """Handle STT error."""
+        self.transmission_panel.set_transmitting_state(False)
+        self._stt_worker = None
+        logger.error(f"STT Error: {error}")
+        self.status_bar.showMessage(f"Voice Input Error: {error}")
     
     def _init_copilot(self):
         """Initialize copilot with callbacks."""

@@ -13,3 +13,7 @@ python-engineio
 
 # Optional: for downloading files
 # Note: requests is already included above
+
+# SpeechD-NG integration
+dbus-python
+jeepney  # Alternative pure-python DBus client (backup)

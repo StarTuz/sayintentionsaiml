@@ -109,6 +109,32 @@ curl "https://apipri.sayintentions.ai/sapi/getCommsHistory?api_key=XXX"
   - `server.py` - Flask + Socket.IO web server
   - Embedded HTML/CSS/JS with modern touch-friendly UI
 - **Features**:
+  - ✅ **AI Copilot Toggle** - Enable/disable copilot from tablet/phone (Updated Dec 28)
+  - ✅ **Real-time Sync** - Bidirectional state sync with main GUI
+  - ✅ **Full Comms History** - View and play messages remotely
+
+### ✅ Settings & AI Features (Complete - Dec 28, 2024)
+- **Settings Panel**:
+  - **ATC Mode**: Student / Standard / Pro (affects guidance/verbosity)
+  - **AI Crew**: Cabin Crew & Tour Guide toggles (for immersive announcements)
+  - **Mentor**: Virtual Flight Instructor toggle (ask questions via Intercom)
+- **AI Copilot**:
+  - **Auto-Tune**: Automatically tunes COM1/COM2 when ATC gives frequencies
+  - **Auto-Squawk**: Automatically sets transponder mode/code
+  - **Visual Feedback**: Copilot button glows when active, logs actions
+
+### ✅ Voice Input Integration (Complete - Dec 28, 2024)
+- **Integration**: Uses **SpeechD-NG** (Speech Daemon - Next Gen) via D-Bus
+- **Features**:
+  - **VAD (Voice Activity Detection)**: "Tap to listen, auto-stop on silence"
+  - **Backend**: Configurable **Wyoming** (for Whisper) or **Vosk** (local fallback)
+  - **Privacy**: Local processing supported (via Vosk)
+- **Usage**:
+  - Click "PTT" button (or tap on ComLink)
+  - Button turns Red (TX)
+  - Speak command
+  - Silence detected -> Transcribes -> Sends auto-magically
+- **Features**:
   - ✅ **Works on any device** - tablets, phones, second monitors
   - ✅ **Real-time updates** via WebSocket
   - ✅ **Frequency display** with touch-to-tune

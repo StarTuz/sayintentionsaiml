@@ -20,6 +20,10 @@ class TransmissionPanel(QWidget):
     # Emitted when user sends a transmission
     send_transmission = Signal(str, str)  # message, channel
     
+    # Emitted when voice input is requested (PTT)
+    voice_input_requested = Signal()
+    
+    # Emitted when copilot is toggled
     # Emitted when copilot is toggled
     copilot_toggled = Signal(bool)  # enabled
     
@@ -96,8 +100,10 @@ class TransmissionPanel(QWidget):
         self.ptt_btn = QPushButton("PTT")
         self.ptt_btn.setObjectName("pttButton")
         self.ptt_btn.setToolTip("Push to Talk (hold SPACE)")
-        self.ptt_btn.pressed.connect(self._on_ptt_pressed)
-        self.ptt_btn.released.connect(self._on_ptt_released)
+        self.ptt_btn = QPushButton("PTT")
+        self.ptt_btn.setObjectName("pttButton")
+        self.ptt_btn.setToolTip("Push to Talk (VAD: Tap to speak)")
+        self.ptt_btn.clicked.connect(self._on_ptt_clicked)
         input_layout.addWidget(self.ptt_btn)
         
         layout.addWidget(input_frame)
@@ -160,28 +166,32 @@ class TransmissionPanel(QWidget):
         """Send a quick phrase."""
         self.send_transmission.emit(phrase, self._current_channel)
     
-    def _on_ptt_pressed(self):
-        """Handle PTT button press (start recording placeholder)."""
-        self.ptt_btn.setText("🔴 TX")
-        self.ptt_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {get_color('accent_primary')};
-                border: 2px solid {get_color('accent_primary')};
-                border-radius: 30px;
-                min-width: 60px;
-                min-height: 60px;
-                font-size: 11px;
-                font-weight: bold;
-            }}
-        """)
-        # TODO: Start audio capture for voice input
+    def _on_ptt_clicked(self):
+        """Handle PTT button click."""
+        self.voice_input_requested.emit()
     
-    def _on_ptt_released(self):
-        """Handle PTT button release."""
-        self.ptt_btn.setText("PTT")
-        self.ptt_btn.setStyleSheet("")  # Reset to default
-        self.ptt_btn.setObjectName("pttButton")
-        # TODO: Stop audio capture, send to STT
+    def set_transmitting_state(self, transmitting: bool):
+        """Set the visual state of the PTT button."""
+        if transmitting:
+            self.ptt_btn.setText("🔴 TX")
+            self.ptt_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {get_color('accent_primary')};
+                    border: 2px solid {get_color('accent_primary')};
+                    border-radius: 30px;
+                    min-width: 60px;
+                    min-height: 60px;
+                    font-size: 11px;
+                    font-weight: bold;
+                }}
+            """)
+        else:
+            self.ptt_btn.setText("PTT")
+            self.ptt_btn.setStyleSheet("")  # Reset to default
+            self.ptt_btn.setObjectName("pttButton")
+            # Force style refresh
+            self.ptt_btn.style().unpolish(self.ptt_btn)
+            self.ptt_btn.style().polish(self.ptt_btn)
     
     def set_enabled(self, enabled: bool):
         """Enable/disable transmission controls."""
