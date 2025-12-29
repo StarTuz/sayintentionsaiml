@@ -185,8 +185,86 @@ class CommsHistoryWidget(QWidget):
         self._cleared_ids: set = set()
         self._setup_ui()
     
-    # ... (setup_ui) ...
-
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Header
+        header = QHBoxLayout()
+        header.setContentsMargins(12, 8, 12, 8)
+        
+        title = QLabel("📻 Communications")
+        title.setObjectName("headerLabel")
+        header.addWidget(title)
+        
+        header.addStretch()
+        
+        # Clear button
+        clear_btn = QPushButton("Clear")
+        clear_btn.setFixedWidth(60)
+        clear_btn.clicked.connect(self.clear_history)
+        header.addWidget(clear_btn)
+        
+        layout.addLayout(header)
+        
+        # Scroll area for messages
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.scroll_area.setStyleSheet(f"""
+            QScrollArea {{
+                background-color: {get_color('bg_primary')};
+                border: none;
+            }}
+        """)
+        
+        # Container for messages
+        self.messages_container = QWidget()
+        self.messages_layout = QVBoxLayout(self.messages_container)
+        self.messages_layout.setContentsMargins(8, 8, 8, 8)
+        self.messages_layout.setSpacing(8)
+        self.messages_layout.addStretch()
+        
+        self.scroll_area.setWidget(self.messages_container)
+        layout.addWidget(self.scroll_area)
+        
+        # Empty state label
+        self.empty_label = QLabel("No communications yet.\nConnect to SAPI and start your flight!")
+        self.empty_label.setAlignment(Qt.AlignCenter)
+        self.empty_label.setStyleSheet(f"color: {get_color('text_muted')}; padding: 40px;")
+        self.messages_layout.insertWidget(0, self.empty_label)
+    
+    def add_message(self, message: CommMessage):
+        """Add a new message to the history."""
+        # Hide empty label
+        self.empty_label.hide()
+        
+        # Create bubble
+        bubble = CommBubble(message)
+        bubble.play_audio.connect(lambda url: self._on_play_audio(message, url))
+        
+        self._messages.append(message)
+        self._bubbles.append(bubble)
+        
+        # Insert before the stretch
+        self.messages_layout.insertWidget(self.messages_layout.count() - 1, bubble)
+        
+        # Scroll to bottom
+        self.scroll_area.verticalScrollBar().setValue(
+            self.scroll_area.verticalScrollBar().maximum()
+        )
+    
+    def _on_play_audio(self, message: CommMessage, url: str):
+        """Handle play audio request."""
+        self.play_audio_requested.emit(
+            url,
+            message.station_name,
+            message.frequency,
+            message.outgoing_message
+        )
+    
     def clear_history(self):
         """Clear all messages."""
         # Track cleared IDs so they don't reappear
@@ -213,15 +291,14 @@ class CommsHistoryWidget(QWidget):
                 continue
             
             msg = CommMessage(
-                msg = CommMessage(
-                    id=msg_id,
-                    station_name=entry.station_name or "Unknown",
-                    ident=entry.ident or "",
-                    frequency=entry.frequency or "---",
-                    incoming_message=entry.incoming_message or "",
-                    outgoing_message=entry.outgoing_message or "",
-                    has_audio=bool(entry.atc_url),
-                    audio_url=entry.atc_url,
-                    timestamp=datetime.now()
-                )
-                self.add_message(msg)
+                id=msg_id,
+                station_name=entry.station_name or "Unknown",
+                ident=entry.ident or "",
+                frequency=entry.frequency or "---",
+                incoming_message=entry.incoming_message or "",
+                outgoing_message=entry.outgoing_message or "",
+                has_audio=bool(entry.atc_url),
+                audio_url=entry.atc_url,
+                timestamp=datetime.now()
+            )
+            self.add_message(msg)

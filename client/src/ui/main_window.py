@@ -374,7 +374,7 @@ class MainWindow(QMainWindow):
         
         # Audio handler
         self.audio = AudioHandler()
-        self.audio.state_changed.connect(self._on_audio_state_changed)
+        self.audio.on_playback_start = self._on_audio_start
         self.audio.on_playback_complete = self._on_audio_complete
         self.audio.on_state_change = self._on_audio_state_change
         
