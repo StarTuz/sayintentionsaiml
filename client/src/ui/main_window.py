@@ -3,6 +3,7 @@ SayIntentions Main Window
 
 The primary GUI window for the native Linux client.
 Uses background threads for all SAPI network calls to prevent UI freezing.
+Includes ComLink web server for tablet/phone access.
 """
 
 import sys
@@ -10,7 +11,7 @@ import os
 import logging
 import time
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
@@ -35,6 +36,14 @@ from core.sapi_interface import SapiService, CommEntry, Channel
 from core.sim_data import SimDataInterface
 from audio import AudioHandler, PlayerState
 
+# Optional: ComLink web server (may not be available if flask not installed)
+try:
+    from web import ComLinkServer
+    HAS_COMLINK = True
+except ImportError:
+    HAS_COMLINK = False
+    ComLinkServer = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +56,7 @@ class MainWindow(QMainWindow):
     audio_state_changed = Signal(str, str)  # state, info
     status_message = Signal(str)  # For thread-safe status bar updates
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, enable_web: bool = True, web_port: int = 8080):
         super().__init__(parent)
         
         # State
@@ -59,11 +68,18 @@ class MainWindow(QMainWindow):
         self._active_workers: List[SimpleWorker] = []  # Keep references to prevent GC
         self._minimize_to_tray = True  # Minimize to tray instead of closing
         
+        # ComLink web server
+        self._enable_web = enable_web and HAS_COMLINK
+        self._web_port = web_port
+        self.comlink: Optional[ComLinkServer] = None
+        self._cached_comms: List[Dict[str, Any]] = []  # For ComLink sync
+        
         # Initialize
         self._setup_window()
         self._setup_menu()
         self._setup_ui()
         self._setup_tray()
+        self._setup_comlink()
         self._connect_signals()
         self._init_services()
         
@@ -252,6 +268,61 @@ class MainWindow(QMainWindow):
         self.tray = SystemTray(self)
         logger.info(f"System tray available: {self.tray.is_available}")
     
+    def _setup_comlink(self):
+        """Initialize ComLink web server for tablet/phone access."""
+        if not self._enable_web:
+            logger.info("ComLink web server disabled")
+            return
+        
+        if not HAS_COMLINK:
+            logger.warning("ComLink not available - install flask and flask-socketio")
+            return
+        
+        try:
+            self.comlink = ComLinkServer(port=self._web_port)
+            
+            # Wire up callbacks from web -> app
+            self.comlink.on_send_transmission = self._comlink_send_transmission
+            self.comlink.on_tune_frequency = self._comlink_tune_frequency
+            self.comlink.on_tune_standby = self._comlink_tune_standby
+            self.comlink.on_swap_frequency = self._comlink_swap_frequency
+            self.comlink.on_play_audio = self._comlink_play_audio
+            
+            # Start the server
+            self.comlink.start()
+            logger.info(f"ComLink web server started at http://localhost:{self._web_port}/comlink")
+            
+        except Exception as e:
+            logger.error(f"Failed to start ComLink: {e}")
+            self.comlink = None
+    
+    # ComLink callback handlers
+    def _comlink_send_transmission(self, message: str, channel: str):
+        """Handle transmission from ComLink web interface."""
+        self._on_send_transmission(message, channel)
+    
+    def _comlink_tune_frequency(self, channel: str, frequency: str):
+        """Handle frequency tune from ComLink."""
+        self._on_tune_frequency(channel, frequency)
+    
+    def _comlink_tune_standby(self, channel: str, frequency: str):
+        """Handle standby tune from ComLink."""
+        # Set standby frequency via sim data
+        if channel == "COM1":
+            self.sim_data.set_com1_standby(frequency)
+        else:
+            self.sim_data.set_com2_standby(frequency)
+        self.status_bar.showMessage(f"Set {channel} standby to {frequency}")
+    
+    def _comlink_swap_frequency(self, channel: str):
+        """Handle frequency swap from ComLink."""
+        self._on_swap_frequency(channel)
+    
+    def _comlink_play_audio(self, url: str):
+        """Handle audio play request from ComLink."""
+        if self.audio:
+            self.audio.queue_atc_audio(url, "ATC", "", "")
+    
     def _show_from_tray(self):
         """Show window from tray."""
         self.showNormal()
@@ -365,6 +436,10 @@ class MainWindow(QMainWindow):
         # Update tray icon
         if self.tray.is_available:
             self.tray.set_connected(connected, status)
+        
+        # Update ComLink
+        if self.comlink:
+            self.comlink.update_connection_status(connected, status)
     
     # =========================================================================
     # Polling
@@ -472,6 +547,20 @@ class MainWindow(QMainWindow):
             self.sim_data.write_comms_for_overlay(overlay_msgs, self.sapi.is_connected)
         except Exception as e:
             logger.debug(f"Failed to update overlay: {e}")
+        
+        # Update ComLink with comms
+        if self.comlink:
+            comms_dicts = []
+            for entry in entries:
+                comms_dicts.append({
+                    "station_name": entry.station_name,
+                    "frequency": entry.frequency,
+                    "incoming_message": entry.incoming_message,
+                    "outgoing_message": entry.outgoing_message,
+                    "atc_url": entry.atc_url
+                })
+            self._cached_comms = comms_dicts
+            self.comlink.update_comms(comms_dicts)
             
         # Auto-play new audio (runs in background to avoid blocking)
         for entry in entries:
@@ -630,6 +719,25 @@ class MainWindow(QMainWindow):
                 telemetry.transponder.mode
             )
             
+            # Update ComLink with telemetry
+            if self.comlink:
+                self.comlink.update_telemetry({
+                    "com1": {
+                        "active": telemetry.com1.active if telemetry.com1.power else "OFF",
+                        "standby": telemetry.com1.standby if telemetry.com1.power else "---",
+                        "power": telemetry.com1.power
+                    },
+                    "com2": {
+                        "active": telemetry.com2.active if telemetry.com2.power else "OFF",
+                        "standby": telemetry.com2.standby if telemetry.com2.power else "---",
+                        "power": telemetry.com2.power
+                    },
+                    "transponder": {
+                        "code": telemetry.transponder.code,
+                        "mode": telemetry.transponder.mode
+                    }
+                })
+            
         except Exception as e:
             logger.debug(f"Telemetry update error: {e}")
     
@@ -722,20 +830,34 @@ class MainWindow(QMainWindow):
         if self.audio:
             self.audio.shutdown()
         
+        if self.comlink:
+            self.comlink.stop()
+        
         if self.tray:
             self.tray.hide()
         
         event.accept()
 
 
-def run_gui():
-    """Run the GUI application."""
+def run_gui(enable_web: bool = True, web_port: int = 8080):
+    """
+    Run the GUI application.
+    
+    Args:
+        enable_web: If True, start the ComLink web server for tablet/phone access
+        web_port: Port for the ComLink web server (default: 8080)
+    """
     app = QApplication(sys.argv)
     app.setApplicationName("SayIntentionsML")
     app.setApplicationVersion("1.0.0")
     
-    window = MainWindow()
+    window = MainWindow(enable_web=enable_web, web_port=web_port)
     window.show()
+    
+    # Print ComLink URL if enabled
+    if enable_web and window.comlink:
+        print(f"\n📻 ComLink available at: http://localhost:{web_port}/comlink")
+        print(f"   Access from any device on your network!\n")
     
     sys.exit(app.exec())
 

@@ -101,6 +101,32 @@ curl "https://apipri.sayintentions.ai/sapi/getCommsHistory?api_key=XXX"
   - ✅ Quick phrase buttons for common responses
 - **Run**: `.venv/bin/python client/src/main.py`
 
+### ✅ ComLink Web Interface (Complete - Dec 28, 2024)
+- **Location**: `client/src/web/`
+- **Status**: Fully functional, browser-based interface
+- **Access**: http://localhost:8080/comlink
+- **Components**:
+  - `server.py` - Flask + Socket.IO web server
+  - Embedded HTML/CSS/JS with modern touch-friendly UI
+- **Features**:
+  - ✅ **Works on any device** - tablets, phones, second monitors
+  - ✅ **Real-time updates** via WebSocket
+  - ✅ **Frequency display** with touch-to-tune
+  - ✅ **Frequency swap** buttons
+  - ✅ **Communications history** with audio playback
+  - ✅ **Text transmission** input with quick phrases
+  - ✅ **Dark theme** matching the desktop client
+  - ✅ **Mobile-optimized** touch interface
+- **Usage**:
+  - Default: Starts automatically with GUI (`python main.py`)
+  - Headless: `python main.py --web` (web + audio only, no GUI)
+  - Disable: `python main.py --no-web`
+- **Purpose**: 
+  - **Fullscreen flight sim users** who can't alt-tab
+  - **VR users** who need a companion device
+  - **Multi-monitor setups**
+  - **Tablet/phone control** for immersive experience
+
 ### ✅ X-Plane Integration (Complete - Dec 27, 2024)
 - **Location**: `adapters/xplane/`
 - **Status**: Bidirectional communication working

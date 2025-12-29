@@ -58,17 +58,31 @@ pip install -r client/requirements.txt
 ### 3. Run
 
 ```bash
-# Launch the client
-# (Automatically installs the X-Plane plugin on first run!)
+# Launch the client (GUI + ComLink web server)
+# Automatically installs the X-Plane plugin on first run!
 python client/src/main.py
 ```
 
-### 3. Run the Client (Mock Mode)
+### 4. Access ComLink (For Fullscreen/VR Users)
+
+Open in any browser (tablet, phone, second monitor):
+```
+http://localhost:8080/comlink
+```
+
+This touch-friendly web interface lets you interact with ATC without alt-tabbing out of your fullscreen simulator.
+
+### Alternative Modes
 
 ```bash
-cd client
-pip install -r requirements.txt
-python src/main.py
+# Headless mode (web + audio only, no GUI window)
+python client/src/main.py --web
+
+# GUI without web server
+python client/src/main.py --no-web
+
+# CLI mode
+python client/src/main.py --cli
 ```
 
 ## Simulator Support

@@ -101,12 +101,13 @@ def install_plugin(xplane_path: Path) -> bool:
         if not install_xppython3(plugins_dir):
             logger.warning("Could not install XPPython3. Plugin may not load.")
         
-        # 2. Ensure PythonPlugins exists (XPPython3 creates it on run, but we can make it now)
+        # 2. Ensure PythonPlugins exists
         if not python_plugins_dir.exists():
             python_plugins_dir.mkdir(parents=True, exist_ok=True)
             
-        # 3. Create target directory
-        target_dir.mkdir(parents=True, exist_ok=True)
+        # 3. Target directory IS PythonPlugins (XPPython3 only scans root PI_*.py)
+        # We cannot put it in a subdirectory unless we have a loader.
+        target_dir = python_plugins_dir
         
         # 4. Locate source files
         # client/src/core/sim_installer.py -> ... -> SayIntentionsML
@@ -125,6 +126,8 @@ def install_plugin(xplane_path: Path) -> bool:
                 
         logger.info(f"Successfully installed SayIntentionsML plugin to: {target_dir}")
         return True
+            
+
         
     except Exception as e:
         logger.error(f"Plugin installation failed: {e}")

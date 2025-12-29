@@ -42,9 +42,12 @@ class PythonInterface:
         self.running = True
         self.last_command_time = 0
         
-        # Initialize In-Sim Overlay
+        # Initialize In-Sim Overlay (optional - may fail if ImGui not available)
         if overlay:
-            overlay.init_overlay()
+            if overlay.init_overlay():
+                xp.log("[SayIntentionsML] In-sim overlay initialized")
+            else:
+                xp.log("[SayIntentionsML] In-sim overlay disabled (ImGui not available)")
         
         # Data directory
         self.data_dir = os.path.expanduser("~/.local/share/SayIntentionsAI")
@@ -171,18 +174,25 @@ class PythonInterface:
         
         return 0.5  # Call again in 0.5 seconds
     
-    def _hz_to_freq_str(self, hz: int) -> str:
-        """Convert frequency in Hz to string like '121.500'."""
-        if hz == 0:
+    def _hz_to_freq_str(self, khz: int) -> str:
+        """
+        Convert frequency from 833 kHz DataRef to string like '121.500'.
+        
+        The sim/cockpit2/radios/actuators/com*_frequency_hz_833 DataRefs
+        actually return frequency in kHz (e.g., 135055 = 135.055 MHz).
+        """
+        if khz == 0:
             return "---"
-        mhz = hz / 1000000.0
+        mhz = khz / 1000.0
         return f"{mhz:.3f}"
     
     def _freq_str_to_hz(self, freq_str: str) -> int:
-        """Convert frequency string like '121.500' to Hz."""
+        """
+        Convert frequency string like '121.500' to kHz for 833 DataRefs.
+        """
         try:
             mhz = float(freq_str)
-            return int(mhz * 1000000)
+            return int(mhz * 1000)
         except ValueError:
             return 0
     

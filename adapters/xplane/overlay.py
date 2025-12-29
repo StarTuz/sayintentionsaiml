@@ -187,7 +187,8 @@ def init_overlay():
         _overlay = SayIntentionsOverlay()
         return True
     else:
-        xp.log("[SayIntentionsML] ImGui not available - overlay disabled")
+        # Note: When HAS_IMGUI is False, xp may also be None, so we can't log here
+        # Logging should be done by the caller if needed
         return False
 
 
