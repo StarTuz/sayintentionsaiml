@@ -5,23 +5,23 @@ import logging
 from typing import Dict, Optional, Callable
 from threading import Thread, Event
 
-class SimApiWatcher:
+class StratusTelemetryWatcher:
     """
-    Watches the simAPI_input.json file for updates from the Simulator Adapter.
-    Also handles writing to simAPI_output.jsonl.
+    Watches the stratus_telemetry.json file for updates from the X-Plane plugin.
+    Also handles writing to stratus_commands.jsonl.
     """
     
     def __init__(self, data_dir: str):
         self.data_dir = data_dir
-        self.input_file = os.path.join(data_dir, "simAPI_input.json")
-        self.output_file = os.path.join(data_dir, "simAPI_output.jsonl")
+        self.input_file = os.path.join(data_dir, "stratus_telemetry.json")
+        self.output_file = os.path.join(data_dir, "stratus_commands.jsonl")
         self.running = False
         self._thread: Optional[Thread] = None
         self._stop_event = Event()
         self.last_mtime = 0
         self.latest_data: Dict = {}
         self.on_data_update: Optional[Callable[[Dict], None]] = None
-        self.logger = logging.getLogger("SimApiWatcher")
+        self.logger = logging.getLogger("StratusTelemetryWatcher")
 
     def start(self):
         if not os.path.exists(self.data_dir):
@@ -64,7 +64,7 @@ class SimApiWatcher:
                 self.latest_data = data
                 if self.on_data_update:
                     self.on_data_update(data)
-                self.logger.debug("SimAPI input updated")
+                self.logger.debug("Stratus telemetry updated")
         except json.JSONDecodeError:
             self.logger.warning("Failed to decode JSON from input file (sim writing?)")
         except Exception as e:

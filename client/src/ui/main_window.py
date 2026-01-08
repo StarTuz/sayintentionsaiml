@@ -39,6 +39,11 @@ from core.sapi_interface import CommEntry, Channel
 from core.sim_data import SimDataInterface
 from core.speech_interface import SpeechInterface
 from core.airport_manager import AirportManager
+from core.latency import get_tracker as get_latency_tracker
+from core.validation import validate_atc_response, get_fallback_response, sanitize_for_tts
+from core.seca_logger import get_seca_logger
+from core.flight_phase import get_flight_phase_tracker, FlightPhase
+from core.atc_prompt import build_atc_prompt
 from audio import AudioHandler, PlayerState
 
 # Optional: ComLink web server (may not be available if flask not installed)
@@ -118,7 +123,7 @@ class MainWindow(QMainWindow):
     
     def _setup_window(self):
         """Configure the main window."""
-        self.setWindowTitle("StratusML - Native Mac/Linux Client")
+        self.setWindowTitle("StratusATC - Native Mac/Linux Client")
         self.resize(1400, 850)
         self.setMinimumSize(1100, 700)
         
@@ -463,6 +468,10 @@ class MainWindow(QMainWindow):
         if not self.speech.is_available:
             self.status_bar.showMessage("Error: Speech service not connected")
             return
+        
+        # STRATUS-001: Start latency measurement
+        latency = get_latency_tracker()
+        latency.start("ptt")
             
         self.status_bar.showMessage("Listening... Speak now")
         self.transmission_panel.set_transmitting_state(True)
@@ -500,17 +509,11 @@ class MainWindow(QMainWindow):
         self._stop_ptt_timer()
         self._stt_worker = None
         
-        self._process_queue = []
-        self._is_processing = False
+        # STRATUS-001: Mark STT complete
+        latency = get_latency_tracker()
+        latency.mark("stt_complete")
         
-        # Identity Overrides (Phase 24)
-        self._identity_overrides = {
-            "callsign": "",
-            "type": "" # unused but good for structure
-        }
-        self.sapi = None
-        
-        # Initialize UItranscribed text
+        # Process transcribed text
         if text:
             # Send the transcribed text
             channel = self.transmission_panel._current_channel
@@ -519,6 +522,7 @@ class MainWindow(QMainWindow):
             self._on_send_transmission(text, channel)
         else:
             self.status_bar.showMessage("Listening timed out or no speech detected")
+            latency.abort()  # No valid speech, abort measurement
             
     @Slot(str)
     def _on_stt_error(self, error):
@@ -891,14 +895,17 @@ class MainWindow(QMainWindow):
         
         def do_atc_flow():
             """This runs in background thread: Think -> Speak."""
+            # STRATUS-001: Get latency tracker
+            latency = get_latency_tracker()
+            
             # Build conversation history context (last 10 exchanges)
             if self._atc_history:
                 history_context = "\n".join(self._atc_history[-10:])
             else:
                 history_context = "(This is the first transmission - no prior context)"
             
-            # Use shared method to build prompt
-            atc_prompt = self.build_atc_prompt(
+            # Use extracted module to build prompt (STRATUS-009)
+            atc_prompt = build_atc_prompt(
                 telemetry, 
                 self.airports, 
                 self._update_flight_phase(telemetry), 
@@ -907,30 +914,72 @@ class MainWindow(QMainWindow):
                 overrides=self._identity_overrides
             )
 
+            # STRATUS-001: Mark LLM start
+            latency.mark("llm_start")
+            
             # Get AI response
             think_result = self.sapi.think(atc_prompt)
+            
+            # STRATUS-001: Mark LLM complete
+            latency.mark("llm_complete")
+            
             if not think_result.success:
+                latency.abort()
                 return think_result
             
             atc_response = str(think_result.data).strip()
             
-            # Clean up response (remove quotes if LLM added them)
-            if atc_response.startswith('"') and atc_response.endswith('"'):
-                atc_response = atc_response[1:-1]
+            # STRATUS-003: Validate LLM response before TTS
+            validation = validate_atc_response(atc_response)
+            if not validation.valid:
+                logger.warning(f"ATC response failed validation: {validation.issues}")
+                atc_response = get_fallback_response()
+            else:
+                atc_response = validation.cleaned_response
+            
+            # Sanitize for TTS
+            atc_response = sanitize_for_tts(atc_response)
+            
+            # STRATUS-001: Mark TTS start
+            latency.mark("tts_start")
             
             # Speak the ATC response
             chan_str = "left" if channel == "COM1" else "right"
             speak_result = self.sapi.say(atc_response, channel=chan_str)
             
+            # STRATUS-001: Mark TTS complete
+            latency.mark("tts_complete")
+            
             # Return both for logging
             return type('ATCResult', (), {
                 'success': speak_result.success, 
                 'data': atc_response,
-                'error': speak_result.error if not speak_result.success else None
+                'error': speak_result.error if not speak_result.success else None,
+                # STRATUS-004: Include validation info for SECA
+                'validation_valid': validation.valid,
+                'validation_issues': validation.issues,
+                'original_response': validation.original_response,
+                'prompt': atc_prompt
             })()
         
         def on_result(response):
             """Handle result on UI thread."""
+            # STRATUS-001: End latency measurement
+            latency = get_latency_tracker()
+            measurement = latency.end()
+            
+            # STRATUS-004: Log to SECA
+            if hasattr(response, 'prompt'):
+                seca = get_seca_logger()
+                seca.log_response(
+                    prompt=response.prompt,
+                    response=getattr(response, 'original_response', response.data),
+                    validation_valid=getattr(response, 'validation_valid', True),
+                    validation_issues=getattr(response, 'validation_issues', []),
+                    latency_ms=measurement.total_ms if measurement else None,
+                    session_id=measurement.session_id if measurement else ""
+                )
+            
             if response.success:
                 # Save to conversation history for context
                 self._atc_history.append(f"PILOT: {message}")
@@ -967,7 +1016,9 @@ class MainWindow(QMainWindow):
                 )
                 self.comms_widget.add_message(atc_msg)
                 
-                self.status_message.emit(f"ATC: {response.data[:60]}...")
+                # Log latency in status
+                latency_str = f" ({measurement.total_ms:.0f}ms)" if measurement else ""
+                self.status_message.emit(f"ATC: {response.data[:50]}...{latency_str}")
                 
                 # Phase 22: Co-pilot Action Loop
                 # Pass the response to the co-pilot to check for actionable commands
@@ -987,6 +1038,9 @@ class MainWindow(QMainWindow):
                     self.comlink.send_toast(msg, "error")
         
         def on_error(error):
+            # STRATUS-001: Abort latency on error
+            latency = get_latency_tracker()
+            latency.abort()
             self.status_message.emit(f"Error: {error}")
         
         self._run_in_background(do_atc_flow, on_result, on_error)
@@ -994,33 +1048,16 @@ class MainWindow(QMainWindow):
 
     
     def _update_flight_phase(self, telemetry) -> str:
-        """Update and return the current flight phase based on telemetry."""
-        if not telemetry or not telemetry.connected:
-            return "UNKNOWN"
-            
-        phase = "CRUISE"
-        if telemetry.on_ground:
-            if telemetry.ias < 40:
-                phase = "TAXI/PARKED"
-            else:
-                phase = "TAKEOFF ROLL"
-        else:
-            # Simple climb/descent detection
-            if telemetry.vertical_speed > 300:
-                phase = "CLIMB"
-            elif telemetry.vertical_speed < -300:
-                phase = "DESCENT"
-            
-            # Close to ground and descending
-            if telemetry.altitude_agl < 2000 and telemetry.vertical_speed < -100:
-                phase = "APPROACH/LANDING"
+        """
+        Update and return the current flight phase based on telemetry.
         
-        # Override for high altitude
-        if telemetry.altitude_msl > 18000:
-            phase = f"EN ROUTE ({phase})"
-            
-        self._last_phase = phase
-        return phase
+        STRATUS-005: Uses FlightPhaseTracker for robust state machine detection.
+        """
+        tracker = get_flight_phase_tracker()
+        phase = tracker.update(telemetry)
+        
+        # Return phase description for ATC context
+        return tracker.get_atc_context()
 
     @Slot(str, str)
     def _on_tune_frequency(self, channel: str, freq: str):
@@ -1078,6 +1115,11 @@ class MainWindow(QMainWindow):
                 telemetry.transponder.code,
                 telemetry.transponder.mode
             )
+            
+            # STRATUS-002: Update header frequency display
+            com1_freq = telemetry.com1.active if telemetry.com1.power else "OFF"
+            com2_freq = telemetry.com2.active if telemetry.com2.power else "OFF"
+            self.status_panel.set_frequencies(com1_freq, com2_freq)
             
             # Update ComLink with telemetry
             if self.comlink:
@@ -1219,11 +1261,11 @@ class MainWindow(QMainWindow):
     
     def _show_about(self):
         """Show about dialog."""
-        QMessageBox.about(self, "About StratusML",
-            "<h2>StratusML</h2>"
+        QMessageBox.about(self, "About StratusATC",
+            "<h2>StratusATC</h2>"
             "<p>Version 1.0.0 (Phase 2)</p>"
             "<p>A native Mac/Linux client for the Stratus.AI ATC service.</p>"
-            "<p><a href='https://github.com/user/StratusML'>GitHub</a></p>"
+            "<p><a href='https://github.com/user/StratusATC'>GitHub</a></p>"
             "<hr>"
             "<p>This is an open-source community project.</p>"
         )
@@ -1235,7 +1277,7 @@ class MainWindow(QMainWindow):
             event.ignore()
             self.hide()
             self.tray.show_notification(
-                "StratusML",
+                "StratusATC",
                 "Application minimized to tray. Right-click tray icon to quit."
             )
             return
@@ -1579,7 +1621,7 @@ Respond as ATC. Give ONLY the radio transmission, no explanations."""
     
     def _load_settings(self):
         """Load settings from QSettings."""
-        settings = QSettings("StratusAI", "NativeClient")
+        settings = QSettings("StratusATC", "NativeClient")
         
         # Geometry
         if settings.value("geometry"):
@@ -1608,7 +1650,7 @@ Respond as ATC. Give ONLY the radio transmission, no explanations."""
 
     def _save_settings(self):
         """Save settings to QSettings."""
-        settings = QSettings("StratusAI", "NativeClient")
+        settings = QSettings("StratusATC", "NativeClient")
         
         # Geometry
         settings.setValue("geometry", self.saveGeometry())
@@ -1636,7 +1678,7 @@ def run_gui(enable_web: bool = True, web_port: int = 8080):
         web_port: Port for the ComLink web server (default: 8080)
     """
     app = QApplication(sys.argv)
-    app.setApplicationName("StratusML")
+    app.setApplicationName("StratusATC")
     app.setApplicationVersion("1.0.0")
     
     window = MainWindow(enable_web=enable_web, web_port=web_port)

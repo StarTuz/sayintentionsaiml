@@ -276,9 +276,9 @@ static void InitFilePaths(void) {
   }
 
   snprintf(g_input_file, sizeof(g_input_file),
-           "%s" PATH_SEP "simAPI_input.json", g_data_dir);
+           "%s" PATH_SEP "stratus_telemetry.json", g_data_dir);
   snprintf(g_output_file, sizeof(g_output_file),
-           "%s" PATH_SEP "simAPI_output.jsonl", g_data_dir);
+           "%s" PATH_SEP "stratus_commands.jsonl", g_data_dir);
   snprintf(g_log_file, sizeof(g_log_file),
            "%s" PATH_SEP "stratus_atc.log", g_data_dir);
 }
@@ -447,7 +447,7 @@ static void WriteTelemetryJSON(void) {
 }
 
 static void ReadCommandsJSONL(void) {
-  /* TODO: Implement command reading from simAPI_output.jsonl */
+  /* TODO: Implement command reading from stratus_commands.jsonl */
   /*
    * Commands from the client would include:
    * - set_com1_frequency

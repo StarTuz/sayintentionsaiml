@@ -1,7 +1,7 @@
 """
-StratusML X-Plane Plugin
+StratusATC X-Plane Plugin
 
-A bidirectional adapter for StratusML native Mac/Linux client.
+A bidirectional adapter for Stratus ATC native Mac/Linux client.
 
 Features:
 - Exports telemetry (position, attitude, frequencies, transponder) to JSON
@@ -9,8 +9,8 @@ Features:
 - Updates every 0.5 seconds via FlightLoop
 
 Data Exchange:
-  ~/.local/share/StratusAI/simAPI_telemetry.json  (plugin writes, client reads)
-  ~/.local/share/StratusAI/simAPI_commands.json   (client writes, plugin reads)
+  ~/.local/share/StratusATC/stratus_telemetry.json  (plugin writes, client reads)
+  ~/.local/share/StratusATC/stratus_commands.json   (client writes, plugin reads)
 """
 
 import os
@@ -35,9 +35,9 @@ class PythonInterface:
     """X-Plane Python Plugin Interface."""
     
     def XPluginStart(self):
-        self.Name = "StratusML Adapter"
-        self.Sig = "com.stratusml.adapter"
-        self.Desc = "Bidirectional adapter for StratusML client"
+        self.Name = "StratusATC Adapter"
+        self.Sig = "com.stratusatc.adapter"
+        self.Desc = "Bidirectional adapter for Stratus ATC client"
         
         self.running = True
         self.last_command_time = 0
@@ -45,18 +45,18 @@ class PythonInterface:
         # Initialize In-Sim Overlay (optional - may fail if ImGui not available)
         if overlay:
             if overlay.init_overlay():
-                xp.log("[StratusML] In-sim overlay initialized")
+                xp.log("[StratusATC] In-sim overlay initialized")
             else:
-                xp.log("[StratusML] In-sim overlay disabled (ImGui not available)")
+                xp.log("[StratusATC] In-sim overlay disabled (ImGui not available)")
         
         # Data directory
-        self.data_dir = os.path.expanduser("~/.local/share/StratusAI")
+        self.data_dir = os.path.expanduser("~/.local/share/StratusATC")
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
         
         # File paths for data exchange
-        self.telemetry_file = os.path.join(self.data_dir, "simAPI_telemetry.json")
-        self.commands_file = os.path.join(self.data_dir, "simAPI_commands.json")
+        self.telemetry_file = os.path.join(self.data_dir, "stratus_telemetry.json")
+        self.commands_file = os.path.join(self.data_dir, "stratus_commands.json")
         
         # Initialize DataRefs
         self._init_datarefs()
@@ -65,7 +65,7 @@ class PythonInterface:
         self.flight_loop_id = xp.createFlightLoop(self._flight_loop_callback)
         xp.scheduleFlightLoop(self.flight_loop_id, 0.5)  # Every 0.5 seconds
         
-        xp.log(f"[StratusML] Plugin started. Data dir: {self.data_dir}")
+        xp.log(f"[StratusATC] Plugin started. Data dir: {self.data_dir}")
         return self.Name, self.Sig, self.Desc
     
     def XPluginStop(self):
@@ -77,7 +77,7 @@ class PythonInterface:
         if overlay:
             overlay.cleanup_overlay()
             
-        xp.log("[StratusML] Plugin stopped")
+        xp.log("[StratusATC] Plugin stopped")
     
     def XPluginEnable(self):
         return 1
@@ -156,7 +156,7 @@ class PythonInterface:
         self.dr_ap_hdg = xp.findDataRef("sim/cockpit/autopilot/heading_mag")
         self.dr_ap_vs = xp.findDataRef("sim/cockpit/autopilot/vertical_velocity")
         
-        xp.log("[StratusML] DataRefs initialized")
+        xp.log("[StratusATC] DataRefs initialized")
     
     def _flight_loop_callback(self, sinceLast, elapsedTime, counter, refCon):
         """Called every 0.5 seconds to update telemetry and process commands."""
@@ -171,7 +171,7 @@ class PythonInterface:
             self._process_commands()
             
         except Exception as e:
-            xp.log(f"[StratusML] Error in flight loop: {e}")
+            xp.log(f"[StratusATC] Error in flight loop: {e}")
         
         return 0.5  # Call again in 0.5 seconds
     
@@ -215,7 +215,7 @@ class PythonInterface:
         livery_path = xp.getDatas(self.dr_livery_path)
         
         # DEBUG: Unconditional log to see what's happening
-        xp.log(f"[StratusML] DEBUG: tail='{tail}', livery_path='{livery_path}'")
+        xp.log(f"[StratusATC] DEBUG: tail='{tail}', livery_path='{livery_path}'")
         
         # 2. Check for generic/invalid tail numbers
         # Sometimes unconfigured planes return just the ICAO type or empty string
@@ -233,7 +233,7 @@ class PythonInterface:
         # Path example: "Aircraft/Heavy Metal/B738/.../N123AB/"
         try:
             livery_path = xp.getDatas(self.dr_livery_path)
-            xp.log(f"[StratusML] Generic tail '{tail}' detected. Checking livery path: '{livery_path}'")
+            xp.log(f"[StratusATC] Generic tail '{tail}' detected. Checking livery path: '{livery_path}'")
             
             if livery_path:
                 # Get the storage folder name (often the tail number)
@@ -242,13 +242,13 @@ class PythonInterface:
                     livery_path = livery_path[:-1]
                 
                 folder_name = os.path.basename(livery_path)
-                xp.log(f"[StratusML] Extracted folder name: '{folder_name}'")
+                xp.log(f"[StratusATC] Extracted folder name: '{folder_name}'")
                 
                 # Heuristic: If folder name looks like a registration (3-7 chars), use it
                 if 3 <= len(folder_name) <= 10:
                     return folder_name
         except Exception as e:
-            xp.log(f"[StratusML] Error parsing livery path: {e}")
+            xp.log(f"[StratusATC] Error parsing livery path: {e}")
             pass
             
         return tail if tail else "UNKNOWN"
@@ -345,7 +345,7 @@ class PythonInterface:
                 json.dump(telemetry, f, indent=2)
             os.rename(tmp_file, self.telemetry_file)
         except Exception as e:
-            xp.log(f"[StratusML] Error writing telemetry: {e}")
+            xp.log(f"[StratusATC] Error writing telemetry: {e}")
     
     def _process_commands(self):
         """Read and execute any pending commands from the client."""
@@ -372,9 +372,9 @@ class PythonInterface:
             os.remove(self.commands_file)
             
         except json.JSONDecodeError as e:
-            xp.log(f"[StratusML] Invalid command JSON: {e}")
+            xp.log(f"[StratusATC] Invalid command JSON: {e}")
         except Exception as e:
-            xp.log(f"[StratusML] Error processing commands: {e}")
+            xp.log(f"[StratusATC] Error processing commands: {e}")
     
     def _execute_command(self, cmd: dict):
         """Execute a single command."""
@@ -384,13 +384,13 @@ class PythonInterface:
             freq_hz = self._freq_str_to_hz(cmd.get("frequency", ""))
             if freq_hz > 0:
                 xp.setDatai(self.dr_com1_active, freq_hz)
-                xp.log(f"[StratusML] Set COM1 active: {cmd.get('frequency')}")
+                xp.log(f"[StratusATC] Set COM1 active: {cmd.get('frequency')}")
         
         elif cmd_type == "set_com1_standby":
             freq_hz = self._freq_str_to_hz(cmd.get("frequency", ""))
             if freq_hz > 0:
                 xp.setDatai(self.dr_com1_standby, freq_hz)
-                xp.log(f"[StratusML] Set COM1 standby: {cmd.get('frequency')}")
+                xp.log(f"[StratusATC] Set COM1 standby: {cmd.get('frequency')}")
         
         elif cmd_type == "swap_com1":
             # Swap active and standby
@@ -398,26 +398,26 @@ class PythonInterface:
             standby = xp.getDatai(self.dr_com1_standby)
             xp.setDatai(self.dr_com1_active, standby)
             xp.setDatai(self.dr_com1_standby, active)
-            xp.log("[StratusML] Swapped COM1")
+            xp.log("[StratusATC] Swapped COM1")
         
         elif cmd_type == "set_com2_active":
             freq_hz = self._freq_str_to_hz(cmd.get("frequency", ""))
             if freq_hz > 0:
                 xp.setDatai(self.dr_com2_active, freq_hz)
-                xp.log(f"[StratusML] Set COM2 active: {cmd.get('frequency')}")
+                xp.log(f"[StratusATC] Set COM2 active: {cmd.get('frequency')}")
         
         elif cmd_type == "set_com2_standby":
             freq_hz = self._freq_str_to_hz(cmd.get("frequency", ""))
             if freq_hz > 0:
                 xp.setDatai(self.dr_com2_standby, freq_hz)
-                xp.log(f"[StratusML] Set COM2 standby: {cmd.get('frequency')}")
+                xp.log(f"[StratusATC] Set COM2 standby: {cmd.get('frequency')}")
         
         elif cmd_type == "swap_com2":
             active = xp.getDatai(self.dr_com2_active)
             standby = xp.getDatai(self.dr_com2_standby)
             xp.setDatai(self.dr_com2_active, standby)
             xp.setDatai(self.dr_com2_standby, active)
-            xp.log("[StratusML] Swapped COM2")
+            xp.log("[StratusATC] Swapped COM2")
         
         elif cmd_type == "set_transponder":
             code = cmd.get("code")
@@ -426,7 +426,7 @@ class PythonInterface:
                     code_int = int(code)
                     if 0 <= code_int <= 7777:
                         xp.setDatai(self.dr_xpdr_code, code_int)
-                        xp.log(f"[StratusML] Set transponder: {code}")
+                        xp.log(f"[StratusATC] Set transponder: {code}")
                 except ValueError:
                     pass
         
@@ -435,7 +435,7 @@ class PythonInterface:
             mode_map = {"OFF": 0, "STBY": 1, "ON": 2, "TEST": 3, "ALT": 4}
             if mode in mode_map:
                 xp.setDatai(self.dr_xpdr_mode, mode_map[mode])
-                xp.log(f"[StratusML] Set transponder mode: {mode}")
+                xp.log(f"[StratusATC] Set transponder mode: {mode}")
         
         else:
-            xp.log(f"[StratusML] Unknown command type: {cmd_type}")
+            xp.log(f"[StratusATC] Unknown command type: {cmd_type}")

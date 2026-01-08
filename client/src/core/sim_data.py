@@ -4,8 +4,8 @@ Sim Data Interface
 Reads telemetry from X-Plane plugin and writes commands to control the sim.
 
 Data files:
-  ~/.local/share/StratusAI/simAPI_telemetry.json  (plugin writes, we read)
-  ~/.local/share/StratusAI/simAPI_commands.json   (we write, plugin reads)
+  ~/.local/share/StratusATC/stratus_telemetry.json  (plugin writes, we read)
+  ~/.local/share/StratusATC/stratus_commands.json   (we write, plugin reads)
 """
 
 import os
@@ -86,15 +86,15 @@ class SimDataInterface:
         Initialize the sim data interface.
         
         Args:
-            data_dir: Override the data directory (default: ~/.local/share/StratusAI)
+            data_dir: Override the data directory (default: ~/.local/share/StratusATC)
         """
         if data_dir:
             self.data_dir = Path(data_dir)
         else:
-            self.data_dir = Path.home() / ".local" / "share" / "StratusAI"
+            self.data_dir = Path.home() / ".local" / "share" / "StratusATC"
         
-        self.telemetry_file = self.data_dir / "simAPI_telemetry.json"
-        self.commands_file = self.data_dir / "simAPI_commands.json"
+        self.telemetry_file = self.data_dir / "stratus_telemetry.json"
+        self.commands_file = self.data_dir / "stratus_commands.json"
         self.comms_display_file = self.data_dir / "comms_display.json"
         
         self._last_telemetry: Optional[SimTelemetry] = None

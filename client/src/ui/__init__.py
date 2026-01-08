@@ -1,5 +1,5 @@
 """
-UI Module for StratusML Client
+UI Module for StratusATC Client
 
 Provides PySide6-based GUI components.
 """

@@ -1,6 +1,6 @@
-# StratusML X-Plane Adapter
+# StratusATC X-Plane Adapter
 
-A Python plugin for X-Plane 11/12 that provides bidirectional communication with the StratusML native client.
+A Python plugin for X-Plane 11/12 that provides bidirectional communication with the StratusATC native client.
 
 ## Features
 
@@ -17,8 +17,8 @@ A Python plugin for X-Plane 11/12 that provides bidirectional communication with
   - Follow instructions to install `XPPython3` into `Resources/plugins/`
 
 ### Automatic Installation
-The StratusML client attempts to automatically install the adapter plugin to:
-`X-Plane/Resources/plugins/PythonPlugins/StratusML`
+The StratusATC client attempts to automatically install the adapter plugin to:
+`X-Plane/Resources/plugins/PythonPlugins/StratusATC`
 
 If automatic installation fails, follow the manual steps below.
 
@@ -27,20 +27,20 @@ If automatic installation fails, follow the manual steps below.
 2. Copy the plugin folder:
    ```bash
    # Create the PythonPlugins directory if it doesn't exist (created by XPPython3 usually)
-   mkdir -p "X-Plane/Resources/plugins/PythonPlugins/StratusML"
+   mkdir -p "X-Plane/Resources/plugins/PythonPlugins/StratusATC"
    
    # Copy files
-   cp PI_Stratus.py "X-Plane/Resources/plugins/PythonPlugins/StratusML/"
-   cp overlay.py "X-Plane/Resources/plugins/PythonPlugins/StratusML/"
+   cp PI_Stratus.py "X-Plane/Resources/plugins/PythonPlugins/StratusATC/"
+   cp overlay.py "X-Plane/Resources/plugins/PythonPlugins/StratusATC/"
    ```
 3. Restart X-Plane.
 
 ## Data Exchange
 
-The plugin communicates with the client via JSON files in `~/.local/share/StratusAI/`:
+The plugin communicates with the client via JSON files in `~/.local/share/StratusATC/`:
 
 ### Telemetry (Plugin → Client)
-File: `simAPI_telemetry.json`
+File: `stratus_telemetry.json`
 
 ```json
 {
@@ -68,7 +68,7 @@ File: `simAPI_telemetry.json`
 ```
 
 ### Commands (Client → Plugin)
-File: `simAPI_commands.json`
+File: `stratus_commands.json`
 
 ```json
 {
@@ -117,9 +117,9 @@ File: `simAPI_commands.json`
 - Check X-Plane log for errors
 
 ### No telemetry data
-- Verify the data directory exists: `ls ~/.local/share/StratusAI/`
-- Check if telemetry file is being updated: `tail -f ~/.local/share/StratusAI/simAPI_telemetry.json`
+- Verify the data directory exists: `ls ~/.local/share/StratusATC/`
+- Check if telemetry file is being updated: `tail -f ~/.local/share/StratusATC/stratus_telemetry.json`
 
 ### Commands not working
-- Check X-Plane log for `[StratusML]` messages
+- Check X-Plane log for `[StratusATC]` messages
 - Verify command file format is valid JSON

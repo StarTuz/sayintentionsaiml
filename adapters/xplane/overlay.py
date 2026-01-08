@@ -1,5 +1,5 @@
 """
-StratusML X-Plane In-Sim Overlay
+StratusATC X-Plane In-Sim Overlay
 
 Provides an in-sim widget showing:
 - Connection status
@@ -38,7 +38,7 @@ class CommMessage:
 
 class StratusOverlay:
     """
-    In-sim overlay widget for StratusML.
+    In-sim overlay widget for StratusATC.
     
     Shows a small floating panel with recent communications.
     """
@@ -48,7 +48,7 @@ class StratusOverlay:
         self.messages: List[CommMessage] = []
         self.max_messages = 3
         
-        self.data_dir = Path.home() / ".local" / "share" / "StratusAI"
+        self.data_dir = Path.home() / ".local" / "share" / "StratusATC"
         self.comms_file = self.data_dir / "comms_display.json"
         
         # Window state
@@ -68,11 +68,11 @@ class StratusOverlay:
         """Initialize ImGui window."""
         # Register the window
         xp_imgui.create_window(
-            "StratusML",
+            "StratusATC",
             self._draw_callback,
             visible=self.visible
         )
-        xp.log("[StratusML] Overlay initialized")
+        xp.log("[StratusATC] Overlay initialized")
     
     def _draw_callback(self):
         """ImGui draw callback - renders the overlay content."""
@@ -89,7 +89,7 @@ class StratusOverlay:
         # Begin window
         imgui.set_next_window_size(self.window_width, self.window_height, imgui.COND_FIRST_USE_EVER)
         
-        expanded, opened = imgui.begin("StratusML", True, imgui.WINDOW_NO_COLLAPSE)
+        expanded, opened = imgui.begin("StratusATC", True, imgui.WINDOW_NO_COLLAPSE)
         
         if expanded:
             # Status line
@@ -154,19 +154,19 @@ class StratusOverlay:
                 self.messages.append(msg)
             
         except Exception as e:
-            xp.log(f"[StratusML] Error reading comms: {e}")
+            xp.log(f"[StratusATC] Error reading comms: {e}")
     
     def show(self):
         """Show the overlay."""
         self.visible = True
         if HAS_IMGUI:
-            xp_imgui.show_window("StratusML")
+            xp_imgui.show_window("StratusATC")
     
     def hide(self):
         """Hide the overlay."""
         self.visible = False
         if HAS_IMGUI:
-            xp_imgui.hide_window("StratusML")
+            xp_imgui.hide_window("StratusATC")
     
     def toggle(self):
         """Toggle overlay visibility."""

@@ -222,7 +222,7 @@ def main():
     args = parser.parse_args()
     
     print("="*60)
-    print("StratusML Audio Module Test")
+    print("StratusATC Audio Module Test")
     print("="*60)
     
     results = []

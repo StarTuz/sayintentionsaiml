@@ -114,6 +114,43 @@ class StatusPanel(QWidget):
         self.mute_btn.clicked.connect(self._on_mute_toggled)
         layout.addWidget(self.mute_btn)
         
+        # Separator
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.VLine)
+        sep2.setStyleSheet(f"background-color: {get_color('border_light')};")
+        layout.addWidget(sep2)
+        
+        # STRATUS-002: Frequency display
+        freq_layout = QVBoxLayout()
+        freq_layout.setSpacing(2)
+        
+        freq_label = QLabel("Radio")
+        freq_label.setStyleSheet(f"color: {get_color('text_muted')}; font-size: 10px;")
+        freq_layout.addWidget(freq_label)
+        
+        freq_row = QHBoxLayout()
+        freq_row.setSpacing(12)
+        
+        self.com1_label = QLabel("COM1: ---")
+        self.com1_label.setStyleSheet(f"""
+            color: {get_color('text_primary')}; 
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 12px;
+            font-weight: bold;
+        """)
+        freq_row.addWidget(self.com1_label)
+        
+        self.com2_label = QLabel("COM2: ---")
+        self.com2_label.setStyleSheet(f"""
+            color: {get_color('text_secondary')}; 
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 12px;
+        """)
+        freq_row.addWidget(self.com2_label)
+        
+        freq_layout.addLayout(freq_row)
+        layout.addLayout(freq_layout)
+        
         layout.addStretch()
         
         # Polling status
@@ -190,3 +227,16 @@ class StatusPanel(QWidget):
             self.polling_label.setStyleSheet(f"color: {get_color('accent_green')}; font-size: 11px;")
         else:
             self.polling_label.setText("")
+    
+    def set_frequencies(self, com1: str = "---", com2: str = "---"):
+        """
+        Update COM frequency display.
+        
+        STRATUS-002: Pilots need to see frequency at a glance.
+        
+        Args:
+            com1: COM1 active frequency (e.g., "118.700")
+            com2: COM2 active frequency (e.g., "121.500")
+        """
+        self.com1_label.setText(f"COM1: {com1}")
+        self.com2_label.setText(f"COM2: {com2}")

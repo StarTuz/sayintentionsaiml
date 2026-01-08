@@ -24,15 +24,15 @@ The architecture is "Brain vs Motor":
    - Generates context-aware ATC prompts
 3. **The Simulator Adapter (The "Spoke")**:
    - Reads simulator internal state
-   - Writes to `simAPI_input.json` (1Hz update)
-   - Reads `simAPI_output.jsonl` and executes commands
+   - Writes to `stratus_telemetry.json` (1Hz update)
+   - Reads `stratus_commands.jsonl` and executes commands
 
-### 1.2 Data Exchange (SimAPI)
+### 1.2 Data Exchange (Telemetry)
 
 File-based interface at `~/.local/share/StratusATC`:
 
-- **Input**: `simAPI_input.json` (Sim → Client)
-- **Output**: `simAPI_output.jsonl` (Client → Sim)
+- **Input**: `stratus_telemetry.json` (Sim → Client)
+- **Output**: `stratus_commands.jsonl` (Client → Sim)
 
 ---
 

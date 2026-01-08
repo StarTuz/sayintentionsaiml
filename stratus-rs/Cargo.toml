@@ -1,0 +1,53 @@
+[workspace]
+resolver = "2"
+members = [
+    "stratus-core",
+    "stratus-gui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Stratus Community"]
+license = "MIT"
+repository = "https://github.com/StarTuz/stratus"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# HTTP client (for Ollama)
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# GUI
+iced = { version = "0.13", features = ["tokio", "advanced"] }
+
+# Web server (for ComLink)
+axum = "0.7"
+tower-http = { version = "0.6", features = ["fs", "cors"] }
+
+# Audio
+cpal = "0.15"
+rodio = "0.19"
+
+# Whisper STT
+# whisper-rs = "0.11"  # Enable when ready
+
+# D-Bus (Linux TTS)
+zbus = "5"
+
+# File watching
+notify = "7"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "2"
+anyhow = "1"

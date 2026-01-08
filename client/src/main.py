@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-StratusML - Native Mac/Linux Client
+StratusATC - Native Mac/Linux Client
 
 Main entry point for the application.
 
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def main():
     parser = argparse.ArgumentParser(
-        description='StratusML - Native Mac/Linux Client',
+        description='StratusATC - Native Mac/Linux Client',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Modes:
@@ -76,7 +76,7 @@ For CLI-only usage, see: python cli.py --help
     elif args.web:
         # Headless mode - web server only with audio playback
         print("=" * 60)
-        print("  StratusML - Headless Mode (Web + Audio Only)")
+        print("  StratusATC - Headless Mode (Web + Audio Only)")
         print("=" * 60)
         run_headless(port=args.port)
     else:

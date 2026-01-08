@@ -41,11 +41,11 @@ logger = logging.getLogger("cli")
 
 
 class StratusCLI(cmd.Cmd):
-    """Interactive CLI for StratusML"""
+    """Interactive CLI for StratusATC"""
     
     intro = """
 ╔══════════════════════════════════════════════════════════════════╗
-║           StratusML - Native Mac/Linux Client              ║
+║           StratusATC - Native Mac/Linux Client              ║
 ║                    CLI Test Harness v0.1                         ║
 ╚══════════════════════════════════════════════════════════════════╝
 
@@ -74,7 +74,7 @@ Type 'quit' or 'exit' to exit.
         # Try to find config and auto-connect
         config_locations = [
             self.config_path,
-            os.path.expanduser("~/.config/stratusai/config.ini"),
+            os.path.expanduser("~/.config/stratusatc/config.ini"),
             os.path.join(os.path.dirname(__file__), "..", "..", "config.ini"),
         ]
         
@@ -600,7 +600,7 @@ def run_oneshot(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='StratusML CLI Client',
+        description='StratusATC CLI Client',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

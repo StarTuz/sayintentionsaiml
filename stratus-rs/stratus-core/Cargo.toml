@@ -1,0 +1,24 @@
+[package]
+name = "stratus-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+reqwest.workspace = true
+notify.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+chrono = "0.4"
+dirs = "6"
+futures-util = "0.3"
+
+# Platform-specific
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus.workspace = true

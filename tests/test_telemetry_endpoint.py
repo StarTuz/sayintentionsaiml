@@ -44,7 +44,7 @@ def test_telemetry():
                 "TITLE": "C-FIJM",
                 "ATC MODEL": "M7"
             },
-            "exe": "StratusML_Test.exe",
+            "exe": "StratusATC_Test.exe",
             "simapi_version": "1.0",
             "name": "X-Plane 12 (Test)",
             "version": "1.0.0",

@@ -19,7 +19,7 @@
 - **Location**: `adapters/xplane/StratusATC/lin_x64/StratusATC.xpl`
 - **Features**:
   - Reads all essential DataRefs (position, radios, transponder, autopilot)
-  - Writes telemetry to `~/.local/share/StratusATC/simAPI_input.json` at 1Hz
+  - Writes telemetry to `~/.local/share/StratusATC/stratus_telemetry.json` at 1Hz
   - Own log file (`stratus_atc.log`) - doesn't pollute X-Plane's Log.txt
   - Verified working in X-Plane 12.3.3
 
@@ -73,14 +73,14 @@
 ┌──────────────────────────────────────────────────────────────┐
 │                         Stratus Client                        │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
-│  │    Audio    │  │     UI      │  │   SimAPI    │           │
+│  │    Audio    │  │     UI      │  │   Telemetry    │           │
 │  │   Handler   │  │  (PySide6)  │  │   Watcher   │           │
 │  └─────────────┘  └─────────────┘  └──────┬──────┘           │
 └────────────────────────────────────────────┼─────────────────┘
                                              │ JSON Files
 ┌────────────────────────────────────────────┼─────────────────┐
-│   simAPI_input.json ◄──────────────────────┤                  │
-│   simAPI_output.jsonl ─────────────────────►                  │
+│   stratus_telemetry.json ◄──────────────────────┤                  │
+│   stratus_commands.jsonl ─────────────────────►                  │
 │                  ~/.local/share/StratusATC/                   │
 └────────────────────────────────────────────┬─────────────────┘
                                              │ Read/Write
@@ -123,8 +123,8 @@ Stratus/
 │       ├── main.py              # Entry point
 │       ├── core/
 │       │   └── providers/       # ATC provider implementations
-│       ├── simapi/
-│       │   └── file_watcher.py  # SimAPI file handler
+│       ├── telemetry/
+│       │   └── file_watcher.py  # Telemetry file handler
 │       └── ui/
 │           └── main_window.py   # PySide6 window
 ├── docs/

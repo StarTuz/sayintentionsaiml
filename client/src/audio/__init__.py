@@ -1,5 +1,5 @@
 """
-Audio module for StratusML client.
+Audio module for StratusATC client.
 
 Provides audio playback capabilities for ATC responses.
 """

@@ -50,3 +50,8 @@ adapters/xplane/build/
 # Test artifacts
 *.mp3
 config.ini
+
+# Rust build artifacts
+stratus-rs/target/
+**/target/
+

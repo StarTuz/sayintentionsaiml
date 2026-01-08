@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Write simAPI_input.json in EXACT DCS adapter format to Proton prefix.
+Write stratus_telemetry.json in EXACT DCS adapter format to Proton prefix.
 Run this continuously while the Windows client is running.
 """
 import json
@@ -9,12 +9,12 @@ import os
 from pathlib import Path
 
 # Proton prefix path (where Windows client expects the file)
-PROTON_LOCALAPPDATA = Path("/home/startux/.steam/steam/steamapps/compatdata/3062906073/pfx/drive_c/users/steamuser/AppData/Local/StratusAI")
+PROTON_LOCALAPPDATA = Path("/home/startux/.steam/steam/steamapps/compatdata/3062906073/pfx/drive_c/users/steamuser/AppData/Local/StratusATC")
 
 # Also Linux path (where X-Plane plugin writes)
-LINUX_TELEMETRY = Path.home() / ".local/share/StratusAI/simAPI_telemetry.json"
+LINUX_TELEMETRY = Path.home() / ".local/share/StratusATC/stratus_telemetry.json"
 
-SIMAPI_INPUT_FILE = PROTON_LOCALAPPDATA / "simAPI_input.json"
+TELEMETRY_FILE = PROTON_LOCALAPPDATA / "stratus_telemetry.json"
 
 def read_xplane_telemetry():
     """Read current telemetry from X-Plane plugin."""
@@ -25,7 +25,7 @@ def read_xplane_telemetry():
         return None
 
 def convert_to_dcs_format(xp_data):
-    """Convert X-Plane telemetry to exact DCS/SimAPI format."""
+    """Convert X-Plane telemetry to exact DCS/Telemetry format."""
     # Get COM frequencies in MHz format (without decimal point in Hz)
     com1_mhz = float(xp_data.get("com1", {}).get("active", "121.5").replace(".", "")) / 1000
     com2_mhz = float(xp_data.get("com2", {}).get("active", "121.5").replace(".", "")) / 1000
@@ -37,7 +37,7 @@ def convert_to_dcs_format(xp_data):
             "name": "XPlane",
             "version": "X-Plane 12.1.2",
             "adapter_version": "XPLANE_LINUX_V1.0",
-            "simapi_version": "v1",
+            "api_version": "v1",
             "exe": "X-Plane.exe",  # Windows client checks for running .exe
             "variables": {
                 "PLANE LATITUDE": xp_data.get("latitude", 0),
@@ -77,9 +77,9 @@ def convert_to_dcs_format(xp_data):
     }
 
 def main():
-    print("=== X-Plane to Proton SimAPI Bridge ===")
+    print("=== X-Plane to Proton Telemetry Bridge ===")
     print(f"Reading from: {LINUX_TELEMETRY}")
-    print(f"Writing to: {SIMAPI_INPUT_FILE}")
+    print(f"Writing to: {TELEMETRY_FILE}")
     print("Press Ctrl+C to stop\n")
     
     # Ensure directory exists
@@ -89,9 +89,9 @@ def main():
     while True:
         xp_data = read_xplane_telemetry()
         if xp_data:
-            simapi_data = convert_to_dcs_format(xp_data)
-            with open(SIMAPI_INPUT_FILE, 'w') as f:
-                json.dump(simapi_data, f, indent=4)
+            telemetry_data = convert_to_dcs_format(xp_data)
+            with open(TELEMETRY_FILE, 'w') as f:
+                json.dump(telemetry_data, f, indent=4)
             count += 1
             if count % 10 == 0:
                 print(f"[{count}] Written: Lat {xp_data.get('latitude', 0):.4f}, Lon {xp_data.get('longitude', 0):.4f}")

@@ -1,5 +1,5 @@
 """
-Core module for StratusML native client.
+Core module for StratusATC native client.
 
 Contains:
 - sapi_interface: SAPI REST API wrappers

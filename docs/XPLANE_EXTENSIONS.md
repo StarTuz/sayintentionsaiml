@@ -57,7 +57,7 @@ sim/multiplayer/position/plane1_phi  # Roll
 
 #### 1.3 Custom Traffic Plugin
 Build a dedicated traffic plugin that:
-1. Receives traffic data from Stratus (via the SimAPI JSON)
+1. Receives traffic data from Stratus (via the Telemetry JSON)
 2. Spawns OBJ models at correct positions
 3. Animates movement along defined paths
 
@@ -281,7 +281,7 @@ siai/freq/next                       # Next frequency to tune
 
 ### Testing Without API Key
 Most extension work can proceed without a Stratus API key by:
-1. Mocking the SimAPI input/output files
+1. Mocking the Telemetry input/output files
 2. Using test flight scenarios
 3. Validating plugin integrations independently
 

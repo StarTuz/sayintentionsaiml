@@ -1,5 +1,5 @@
 """
-Speech Interface for StratusML
+Speech Interface for StratusATC
 Wraps the SpeechD-NG D-Bus service for TTS and STT functionality.
 """
 

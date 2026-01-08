@@ -192,7 +192,7 @@ Consider dual-mode client:
 │                 Adapter Layer                    │
 │  ┌─────────────────┐  ┌─────────────────┐       │
 │  │   File I/O      │  │   Web API       │       │
-│  │  (simAPI JSON)  │  │ (REST/WebSocket)│       │
+│  │  (stratus_telemetry JSON)  │  │ (REST/WebSocket)│       │
 │  └─────────────────┘  └─────────────────┘       │
 │         ↓                    ↓                   │
 │  ┌─────────────────┐  ┌─────────────────┐       │

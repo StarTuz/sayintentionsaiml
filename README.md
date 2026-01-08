@@ -55,7 +55,7 @@ http://localhost:8080/comlink
 ```
 ┌─────────────┐      JSON Files       ┌──────────────────┐
 │  X-Plane    │ ──────────────────────│  Stratus Client  │
-│  Plugin     │  simAPI_input.json    │  (Python/Qt6)    │
+│  Plugin     │  stratus_telemetry.json    │  (Python/Qt6)    │
 └─────────────┘                       └────────┬─────────┘
                                                │
                               ┌────────────────┼────────────────┐

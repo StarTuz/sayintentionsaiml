@@ -1,7 +1,7 @@
 """
 Simulator Plugin Installer
 
-Automatically detects X-Plane installations and installs the StratusML plugin.
+Automatically detects X-Plane installations and installs the StratusATC plugin.
 mimicking the behavior of the official Windows client.
 """
 
@@ -95,7 +95,7 @@ def install_plugin(xplane_path: Path) -> bool:
     try:
         plugins_dir = xplane_path / "Resources" / "plugins"
         python_plugins_dir = plugins_dir / "PythonPlugins"
-        target_dir = python_plugins_dir / "StratusML"
+        target_dir = python_plugins_dir / "StratusATC"
         
         # 1. Ensure XPPython3 is installed
         if not install_xppython3(plugins_dir):
@@ -110,7 +110,7 @@ def install_plugin(xplane_path: Path) -> bool:
         target_dir = python_plugins_dir
         
         # 4. Locate source files
-        # client/src/core/sim_installer.py -> ... -> StratusML
+        # client/src/core/sim_installer.py -> ... -> StratusATC
         repo_root = Path(__file__).resolve().parent.parent.parent.parent
         
         for filename, rel_path in PLUGIN_FILES.items():
@@ -124,7 +124,7 @@ def install_plugin(xplane_path: Path) -> bool:
                 logger.error(f"Source file not found: {src_file}")
                 return False
                 
-        logger.info(f"Successfully installed StratusML plugin to: {target_dir}")
+        logger.info(f"Successfully installed StratusATC plugin to: {target_dir}")
         return True
             
 

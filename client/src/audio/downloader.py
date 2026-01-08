@@ -31,10 +31,10 @@ class AudioDownloader:
     Downloads and caches audio files from URLs.
     
     Audio files are cached locally to avoid repeated downloads.
-    Cache is stored in ~/.cache/StratusAI/audio/
+    Cache is stored in ~/.cache/StratusATC/audio/
     """
     
-    DEFAULT_CACHE_DIR = "~/.cache/StratusAI/audio"
+    DEFAULT_CACHE_DIR = "~/.cache/StratusATC/audio"
     REQUEST_TIMEOUT = 30  # seconds
     
     def __init__(self, cache_dir: Optional[str] = None):
@@ -42,7 +42,7 @@ class AudioDownloader:
         Initialize the audio downloader.
         
         Args:
-            cache_dir: Custom cache directory. Defaults to ~/.cache/StratusAI/audio/
+            cache_dir: Custom cache directory. Defaults to ~/.cache/StratusATC/audio/
         """
         if cache_dir:
             self.cache_dir = Path(cache_dir).expanduser()
